@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020", // Specifies the ECMAScript version to compile to. "ES2020" supports modern JavaScript features like optional chaining.
-    "module": "commonjs", // Defines the module system. "commonjs" is used in Node.js for compatibility.
+    "module": "esnext", // Defines the module system. "commonjs" is used in Node.js for compatibility.
     "rootDir": "./src", // Specifies the root directory of your TypeScript files. All files should reside under "src".
     "outDir": "./dist", // Specifies the directory where the compiled JavaScript files will be output.
     "strict": true, // Enables all strict type-checking options, improving code quality and reducing potential errors.
