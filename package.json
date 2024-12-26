@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/app.js",
-    "dev": "nodemon --watch src --ext ts --exec tsx src/app.ts",
+    "dev": "tsx watch --clear-screen=false src/app.ts",
     "build": "tsc",
     "test": "jest --passWithNoTests",
     "format": "prettier --write 'src/**/*.{js,ts,json,md}'",
@@ -32,7 +32,6 @@
     "globals": "^15.14.0",
     "husky": "^9.1.7",
     "jest": "^29.7.0",
-    "nodemon": "^3.1.9",
     "prettier": "^3.4.2",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
