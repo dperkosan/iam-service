@@ -1,0 +1,1 @@
+CREATE DATABASE "iam-service-test";

@@ -1,7 +1,0 @@
-services:
-  iam-service:
-    build:
-      target: production
-    command: npm run start
-    environment:
-      - NODE_ENV=production
