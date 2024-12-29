@@ -3,16 +3,18 @@
   "version": "1.0.0",
   "description": "IAM Service",
   "main": "dist/app.js",
-  "type": "module",
   "scripts": {
     "start": "node dist/app.js",
     "dev": "tsx watch --clear-screen=false src/app.ts",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "test": "jest --passWithNoTests",
     "format": "prettier --write 'src/**/*.{js,ts,json,md}'",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "migration:generate": "npx typeorm migration:generate -d dist/database/config/typeorm.config",
+    "migration:run": "npx typeorm migration:run -d dist/database/config/typeorm.config",
+    "migration:revert": "npx typeorm migration:revert -d dist/database/config/typeorm.config"
   },
   "author": "Damir Perkosan",
   "license": "ISC",
@@ -21,7 +23,10 @@
     "url": "git+https://github.com/dperkosan/iam-service.git"
   },
   "dependencies": {
-    "express": "^5.0.1"
+    "dotenv": "^16.4.7",
+    "express": "^5.0.1",
+    "pg": "^8.13.1",
+    "typeorm": "^0.3.20"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
@@ -35,7 +40,9 @@
     "prettier": "^3.4.2",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.10",
     "tsx": "^4.19.2",
+    "typeorm-extension": "^3.6.3",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.2"
   },
