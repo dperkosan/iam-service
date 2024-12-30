@@ -14,7 +14,8 @@
     "prepare": "husky",
     "migration:generate": "npx typeorm migration:generate -d dist/database/config/typeorm.config",
     "migration:run": "npx typeorm migration:run -d dist/database/config/typeorm.config",
-    "migration:revert": "npx typeorm migration:revert -d dist/database/config/typeorm.config"
+    "migration:revert": "npx typeorm migration:revert -d dist/database/config/typeorm.config",
+    "seed": "npx typeorm-extension seed:run -d dist/database/config/typeorm.config"
   },
   "author": "Damir Perkosan",
   "license": "ISC",
@@ -23,6 +24,7 @@
     "url": "git+https://github.com/dperkosan/iam-service.git"
   },
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "dotenv": "^16.4.7",
     "express": "^5.0.1",
     "pg": "^8.13.1",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.2",

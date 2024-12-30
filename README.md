@@ -4,6 +4,7 @@
 
 - [Docker Setup](#docker-setup)
 - [Database Migrations](#database-migrations)
+- [Database Seeding](#database-seeding)
 
 ---
 
@@ -82,5 +83,33 @@ Follow these steps to create, run, or revert migrations:
   ```bash
   npm run migration:revert
   ```
+
+---
+
+## Database Seeding
+
+The seeding process is used to populate the database with initial data or generate data using factories. Follow the steps below to run the seeders.
+
+### Prerequisites
+Ensure the following are set up before running the seeders:
+1. **Database connection:** Confirm that your database is running and accessible within docker.
+2. **Compiled files:** Ensure your project is compiled. Use:
+   ```bash
+   npm run build
+   ```
+
+### Running Seeders
+To seed the database, use the following command:
+```bash
+npm run seed
+```
+
+This command will:
+- Delete all existing data from the DB
+- Execute the `seed:run` command from the `typeorm-extension` package.
+- Use the database configuration file located at `dist/database/config/typeorm.config`.
+
+### Creating New Seeders
+To create a new seeder file, create a factory file within entities folder and update `database/seeds/seed.ts` file.
 
 ---
