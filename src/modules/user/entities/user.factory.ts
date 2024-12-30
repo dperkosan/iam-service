@@ -1,4 +1,4 @@
-import { genSalt, hash } from 'bcrypt'
+import { genSalt, hash } from 'bcrypt';
 import { setSeederFactory } from 'typeorm-extension';
 
 import { Role } from '@user/enums/role.enum';
