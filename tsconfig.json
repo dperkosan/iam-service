@@ -14,7 +14,8 @@
     "paths": { 
       "@common/*": ["common/*"], // Alias for "src/common" to simplify imports.
       "@database/*": ["database/*"], // Alias for "src/database" to simplify imports.
-      "@user/*": ["modules/user/*"], // Alias for "src/modules/user" to simplify imports.
+      "@middleware/*": ["middleware/*"], // Alias for "src/middleware" to simplify imports.
+      "@modules/*": ["modules/*"], // Alias for "src/modules" to simplify imports.
     }
   },
   "include": [

@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 
-import { User } from '@user/entities/user.entity';
+import { User } from '@modules/iam/entities/user.entity';
 
 const clearDB = async (dataSource: DataSource) => {
   await dataSource.query(

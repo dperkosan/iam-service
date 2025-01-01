@@ -3,6 +3,8 @@ import { SeederOptions } from 'typeorm-extension';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { NodeEnvAllowedValues } from '@common/types/node-env-allowed-values.type';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Base configuration shared across environments
 const baseConfig: DataSourceOptions = {
   type: 'postgres',
@@ -12,8 +14,12 @@ const baseConfig: DataSourceOptions = {
   password: process.env.DB_PASSWORD,
   synchronize: false, // Never use in production
   logging: false,
-  entities: ['dist/**/*.entity.js'],
-  migrations: ['dist/database/migrations/*.js'],
+  entities: isProduction
+    ? ['dist/**/*.entity.js'] // Production: compiled files
+    : ['src/**/*.entity.ts'], // Development: TypeScript source files
+  migrations: isProduction
+    ? ['dist/database/migrations/*.js']
+    : ['src/database/migrations/*.ts'],
 };
 
 // Environment-specific overrides
@@ -24,15 +30,13 @@ const environmentOverrides: Record<
   development: {
     ...baseConfig,
     database: process.env.DB_NAME,
-    factories: ['dist/**/*.factory.js'],
-    seeds: ['dist/database/seeds/*{.ts,.js}'],
+    factories: ['src/**/*.factory.ts'],
+    seeds: ['src/database/seeds/*.ts'],
     logging: true,
   },
   test: {
     ...baseConfig,
     database: process.env.DB_NAME_TEST,
-    entities: ['src/**/*.entity.ts'],
-    migrations: ['src/database/migrations/*.ts'],
     synchronize: true,
   },
   production: {

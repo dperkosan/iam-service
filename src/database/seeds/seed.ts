@@ -1,8 +1,8 @@
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 
-import { User } from '@user/entities/user.entity';
-import { Role } from '@user/enums/role.enum';
+import { User } from '@modules/iam/entities/user.entity';
+import { Role } from '@modules/iam/enums/role.enum';
 import clearDB from '@database/clear-db';
 
 export default class Seed implements Seeder {

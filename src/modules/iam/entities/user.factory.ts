@@ -1,8 +1,8 @@
 import { genSalt, hash } from 'bcrypt';
 import { setSeederFactory } from 'typeorm-extension';
 
-import { Role } from '@user/enums/role.enum';
-import { User } from '@user/entities/user.entity';
+import { Role } from '@modules/iam/enums/role.enum';
+import { User } from '@modules/iam/entities/user.entity';
 
 export default setSeederFactory(User, async (faker) => {
   const user = new User();

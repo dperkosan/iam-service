@@ -12,9 +12,3 @@ FROM base AS development
 COPY . ./
 
 USER node
-
-ENV NODE_ENV=development
-
-EXPOSE 3000
-
-CMD ["npm", "run", "dev"]

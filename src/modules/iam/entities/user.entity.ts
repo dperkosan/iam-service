@@ -1,21 +1,20 @@
-import { Column, Entity, Unique } from 'typeorm';
+import { Column, Entity } from 'typeorm';
 
 import { BaseUuid } from '@common/entities/base-uuid.entity';
-import { Role } from '@user/enums/role.enum';
+import { Role } from '@modules/iam/enums/role.enum';
 
 @Entity()
-@Unique(['email', 'role'])
 export class User extends BaseUuid {
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   firstName!: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   lastName!: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255, unique: true })
   email!: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   password!: string;
 
   @Column({
@@ -25,11 +24,13 @@ export class User extends BaseUuid {
   role!: Role;
 
   @Column({
+    type: 'boolean',
     default: false,
   })
   emailVerified!: boolean;
 
   @Column({
+    type: 'boolean',
     default: true,
   })
   enabled!: boolean;

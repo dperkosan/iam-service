@@ -1,27 +1,4 @@
 services:
-  iam-service:
-    container_name: iam-service
-    networks:
-      - iam-service-network
-    build:
-      context: .
-    ports:
-      - "3000:3000"
-    command: npm run dev
-    develop:
-      watch:
-        - action: sync
-          path: ./
-          target: /app
-          ignore:
-            - node_modules/
-        - action: rebuild
-          path: ./package.json
-    env_file:
-      - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
   postgres:
     container_name: postgres
     networks:
