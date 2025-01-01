@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { registerSchema } from '@modules/iam/validations/register.validation';
-import { validate } from '@middleware/validate.middleware';
+import { RegisterDto } from '@modules/iam/dtos/register.dto';
+import { validation } from '@middleware/validation.middleware';
 import { register } from '@modules/iam/controllers/auth.controller';
 
 const router = Router();
 
-router.post('/register', validate(registerSchema), register);
+router.post('/register', validation(RegisterDto), register);
 
 export default router;
