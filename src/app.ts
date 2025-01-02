@@ -1,6 +1,7 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import dataSource from '@database/config/typeorm.config';
 import { authRoutes } from '@modules/iam';
+import { errorHandler } from '@middleware/error.middleware';
 
 const app = express();
 
@@ -15,9 +16,8 @@ const app = express();
     // Routes
     app.use('/auth', authRoutes);
 
-    app.get('/', (req: Request, res: Response) => {
-      res.send('Hello!');
-    });
+    // error handling
+    app.use(errorHandler);
 
     // Start Express server
     app.listen(3000, () => {
@@ -25,7 +25,7 @@ const app = express();
     });
   } catch (error) {
     console.error('Error during Data Source initialization:', error);
-    process.exit(1);
+    process.emit('SIGINT');
   }
 })();
 
