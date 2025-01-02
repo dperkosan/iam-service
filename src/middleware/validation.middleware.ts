@@ -2,6 +2,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { ValidationError } from '@common/errors/http-status.error';
+import logger from '@common/log/app.log';
 
 export const validation = <T extends object>(
   dto: new () => T,
@@ -22,7 +23,7 @@ export const validation = <T extends object>(
         .map((error) => Object.values(error.constraints || {}))
         .flat();
 
-      console.error('Validation Error:', {
+      logger.error('Validation Error:', {
         body: req.body,
         errors: errorMessages,
       });

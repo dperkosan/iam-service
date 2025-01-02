@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { AppError } from '@common/errors/http-status.error';
+import logger from '@common/log/app.log';
 
 export const errorHandler = (
   err: AppError | Error,
@@ -8,9 +9,11 @@ export const errorHandler = (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction,
 ): void => {
-  console.error(err);
-
   if (err instanceof AppError) {
+    logger.warn('Operational Error:', {
+      message: err.message,
+      stack: err.stack,
+    });
     res.status(err.statusCode).json({
       message: err.message,
       status: 'error',
@@ -18,6 +21,7 @@ export const errorHandler = (
       ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
   } else {
+    logger.error('Unhandled Error:', { error: err });
     res.status(500).json({
       message: 'Internal Server Error',
       status: 'error',

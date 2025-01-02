@@ -2,6 +2,7 @@ import express from 'express';
 import dataSource from '@database/config/typeorm.config';
 import { authRoutes } from '@modules/iam';
 import { errorHandler } from '@middleware/error.middleware';
+import logger from '@common/log/app.log';
 
 const app = express();
 
@@ -24,7 +25,7 @@ const app = express();
       console.log('Server is running on http://localhost:3000');
     });
   } catch (error) {
-    console.error('Error during Data Source initialization:', error);
+    logger.error('Error during Data Source initialization:', error);
     process.emit('SIGINT');
   }
 })();
