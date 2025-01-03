@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/app.js",
     "dev": "tsx watch --clear-screen=false src/app.ts",
-    "build": "tsc && tsc-alias",
+    "build": "tsc --project tsconfig.build.json && tsc-alias",
     "test": "jest --config jest.config.ts",
     "format": "prettier --write './**/*.{js,ts,json,md,yml,mjs}'",
     "lint": "eslint .",
