@@ -20,8 +20,9 @@ This project leverages Docker for creating isolated environments for development
 - Docker Compose: Version 1.29+
 
 ### Key Features
-   - Hot reload enabled using `develop.watch`.
-   - Access the app at [http://localhost:3000](http://localhost:3000).
+
+- Hot reload enabled using `develop.watch`.
+- Access the app at [http://localhost:3000](http://localhost:3000).
 
 ---
 
@@ -29,21 +30,21 @@ This project leverages Docker for creating isolated environments for development
 
 ### **Build**
 
-  ```bash
-  docker compose -f docker-compose.yml build
-  ```
+```bash
+docker compose -f docker-compose.yml build
+```
 
 ### **Run**
 
-  ```bash
-  docker compose -f docker-compose.yml up --watch
-  ```
+```bash
+docker compose -f docker-compose.yml up --watch
+```
 
 ### **Stop**
 
-  ```bash
-  docker compose -f docker-compose.yml down
-  ```
+```bash
+docker compose -f docker-compose.yml down
+```
 
 ---
 
@@ -52,9 +53,11 @@ This project leverages Docker for creating isolated environments for development
 Follow these steps to create, run, or revert migrations:
 
 ### 1. Make Changes to Entities
+
 - Update the entity files to reflect the changes you want in the database schema.
 
 ### 2. Create a Migration
+
 - Build the project:
   ```bash
   npm run build
@@ -65,6 +68,7 @@ Follow these steps to create, run, or revert migrations:
   ```
 
 ### 3. Run the Migration
+
 - Build the project:
   ```bash
   npm run build
@@ -75,6 +79,7 @@ Follow these steps to create, run, or revert migrations:
   ```
 
 ### 4. Revert a Migration
+
 - Build the project:
   ```bash
   npm run build
@@ -91,7 +96,9 @@ Follow these steps to create, run, or revert migrations:
 The seeding process is used to populate the database with initial data or generate data using factories. Follow the steps below to run the seeders.
 
 ### Prerequisites
+
 Ensure the following are set up before running the seeders:
+
 1. **Database connection:** Confirm that your database is running and accessible within docker.
 2. **Compiled files:** Ensure your project is compiled. Use:
    ```bash
@@ -99,17 +106,21 @@ Ensure the following are set up before running the seeders:
    ```
 
 ### Running Seeders
+
 To seed the database, use the following command:
+
 ```bash
 npm run seed
 ```
 
 This command will:
+
 - Delete all existing data from the DB
 - Execute the `seed:run` command from the `typeorm-extension` package.
 - Use the database configuration file located at `dist/database/config/typeorm.config`.
 
 ### Creating New Seeders
+
 To create a new seeder file, create a factory file within entities folder and update `database/seeds/seed.ts` file.
 
 ---

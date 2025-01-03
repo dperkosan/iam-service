@@ -1,28 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2020", // Specifies the ECMAScript version to compile to. "ES2020" supports modern JavaScript features like optional chaining.
-    "module": "CommonJS", // Specifies the module system. "CommonJS" is traditional for Node.js, while "NodeNext" supports both ES Modules (import/export) and CommonJS (require) based on file extensions (.js, .mjs, .cjs).
-    "rootDir": "./src", // Specifies the root directory of your TypeScript files. All files should reside under "src".
-    "outDir": "./dist", // Specifies the directory where the compiled JavaScript files will be output.
-    "strict": true, // Enables all strict type-checking options, improving code quality and reducing potential errors.
-    "esModuleInterop": true, // Enables compatibility between CommonJS and ES Module imports, allowing `import` statements for CommonJS modules.
-    "skipLibCheck": true, // Skips type checking of declaration files (*.d.ts) for faster compilation.
-    "forceConsistentCasingInFileNames": true, // Ensures file imports match the exact casing of the file name to avoid issues on case-sensitive systems.
-    "emitDecoratorMetadata": true, // Required for proper TypeORM functionality with decorators
-    "experimentalDecorators": true, // Enables the usage of decorators.
-    "baseUrl": "./src", // Sets the base directory for resolving non-relative module imports to the "src" folder.
-    "paths": { 
-      "@common/*": ["common/*"], // Alias for "src/common" to simplify imports.
-      "@database/*": ["database/*"], // Alias for "src/database" to simplify imports.
-      "@middleware/*": ["middleware/*"], // Alias for "src/middleware" to simplify imports.
-      "@modules/*": ["modules/*"], // Alias for "src/modules" to simplify imports.
+    "target": "ES2020",
+    "module": "CommonJS",
+    "rootDir": "./",
+    "outDir": "./dist",
+    "strict": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "baseUrl": "./",
+    "paths": {
+      "@common/*": ["src/common/*"],
+      "@database/*": ["src/database/*"],
+      "@middleware/*": ["src/middleware/*"],
+      "@modules/*": ["src/modules/*"]
     }
   },
-  "include": [
-    "src/**/*" // Includes all TypeScript files in the "src" folder and its subfolders.
-  ],
-  "exclude": [
-    "node_modules", // Excludes dependencies from type checking and compilation.
-    "dist" // Excludes the compiled output to prevent circular processing.
-  ]
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
