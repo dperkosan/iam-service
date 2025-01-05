@@ -1,5 +1,8 @@
-node_modules
+.husky
+coverage
 dist
+logs
+node_modules
+tests
 .env
-*.log
 .DS_Store

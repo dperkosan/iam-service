@@ -13,3 +13,6 @@ dist/
 
 # Ignore logs
 logs/
+
+# Ignore coverage
+coverage/
