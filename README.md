@@ -73,13 +73,6 @@ This project leverages Docker for creating isolated environments for development
 - Docker: Version 20.10+
 - Docker Compose: Version 1.29+
 
-### Key Features
-
-- Hot reload enabled using `develop.watch`.
-- Access the app at [http://localhost:3000](http://localhost:3000).
-
----
-
 ### Commands
 
 #### **Build**
