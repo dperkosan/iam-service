@@ -24,7 +24,7 @@ const app = express();
     // Routes
     app.use('/auth', authRoutes);
 
-    // error handling
+    // Error handling
     app.use(errorHandler);
 
     // Start Express server

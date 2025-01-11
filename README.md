@@ -7,6 +7,7 @@
 - [Database Migrations](#database-migrations)
 - [Database Seeding](#database-seeding)
 - [Adding a New Endpoint](#adding-a-new-endpoint)
+- [Working with Environment Variables](#working-with-environment-variables)
 
 ---
 
@@ -72,6 +73,11 @@ This project leverages Docker for creating isolated environments for development
 
 - Docker: Version 20.10+
 - Docker Compose: Version 1.29+
+
+### Containers
+
+- Postgres
+- Redis
 
 ### Commands
 
@@ -277,3 +283,51 @@ To add a new endpoint to the project, follow these steps:
    - Add unit and integration tests for your new logic in the appropriate test folders (`tests/unit` and `tests/integration`).
 
 By following this structure, you ensure consistency, maintainability, and scalability across the project.
+
+---
+
+## Working with Environment Variables
+
+This project relies on specific environment variables to ensure proper configuration across different environments (e.g., `development`, `test`, `production`). The `getEnvVariable` utility function is used to securely fetch and validate required environment variables.
+
+### Environment Variables Validation
+
+The application requires different sets of environment variables based on the current `NODE_ENV`. If a required environment variable is missing, the application will throw a `MissingEnvError` with the name of the missing variable.
+
+To ensure proper validation, **all required environment variables must be explicitly defined in the `requiredEnvVariables` object within the `getEnvVariable` utility function**. This object is the source of truth for variable requirements across all environments.
+
+### Using the Utility Function
+
+The `getEnvVariable` function is used to retrieve environment variables. It automatically validates whether the variable is required for the current `NODE_ENV` and throws an error if it is missing. Example usage:
+
+```typescript
+import getEnvVariable from './path/to/getEnvVariable';
+
+const dbHost = getEnvVariable('DB_HOST');
+const jwtSecret = getEnvVariable('JWT_SECRET');
+```
+
+### Defining Required Variables
+
+To add a new required environment variable, update the `requiredEnvVariables` object in the utility function. For example:
+
+```typescript
+const requiredEnvVariables: Record<string, string[]> = {
+  common: [
+    // Add your new variable here if required in all environments
+    'NEW_COMMON_VARIABLE',
+  ],
+  development: [
+    // Add your new variable here if required only in development
+    'NEW_DEV_VARIABLE',
+  ],
+  test: [
+    // Add your new variable here if required only in test
+    'NEW_TEST_VARIABLE',
+  ],
+  production: [
+    // Add your new variable here if required only in production
+    'NEW_PROD_VARIABLE',
+  ],
+};
+```
