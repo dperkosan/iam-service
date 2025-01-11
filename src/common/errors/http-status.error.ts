@@ -44,3 +44,13 @@ export class ValidationError extends AppError {
     super(`Validation Error: ${errors.join(', ')}`, 400, true);
   }
 }
+
+export class MissingEnvError extends AppError {
+  constructor(variableName: string) {
+    super(
+      `Environment variable "${variableName}" is missing or undefined`,
+      500,
+      true,
+    );
+  }
+}

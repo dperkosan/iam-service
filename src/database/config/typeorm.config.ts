@@ -2,16 +2,17 @@ import 'dotenv/config';
 import { SeederOptions } from 'typeorm-extension';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { NodeEnvAllowedValues } from '@common/types/node-env-allowed-values.type';
+import getEnvVariable from '@common/utils/env.util';
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = getEnvVariable('NODE_ENV') === 'production';
 
 // Base configuration shared across environments
 const baseConfig: DataSourceOptions = {
   type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
+  host: getEnvVariable('DB_HOST'),
+  port: parseInt(getEnvVariable('DB_PORT') || '5432'),
+  username: getEnvVariable('DB_USERNAME'),
+  password: getEnvVariable('DB_PASSWORD'),
   synchronize: false, // Never use in production
   logging: false,
   entities: isProduction
@@ -29,26 +30,26 @@ const environmentOverrides: Record<
 > = {
   development: {
     ...baseConfig,
-    database: process.env.DB_NAME,
+    database: getEnvVariable('DB_NAME'),
     factories: ['src/**/*.factory.ts'],
     seeds: ['src/database/seeds/*.ts'],
     logging: true,
   },
   test: {
     ...baseConfig,
-    database: process.env.DB_NAME_TEST,
+    database: getEnvVariable('DB_NAME_TEST'),
     synchronize: true,
   },
   production: {
     ...baseConfig,
-    url: process.env.DATABASE_URL,
+    url: getEnvVariable('DATABASE_URL'),
     ssl: { rejectUnauthorized: false }, // For platforms like Heroku
   },
 };
 
 // Merge base configuration with environment-specific options
 const currentEnv =
-  (process.env.NODE_ENV as NodeEnvAllowedValues) || 'development';
+  (getEnvVariable('NODE_ENV') as NodeEnvAllowedValues) || 'development';
 const dataSourceOptions: DataSourceOptions & SeederOptions = {
   ...environmentOverrides[currentEnv],
 };

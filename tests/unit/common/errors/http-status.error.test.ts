@@ -5,6 +5,7 @@ import {
   UnauthorizedError,
   ForbiddenError,
   ValidationError,
+  MissingEnvError,
 } from '@common/errors/http-status.error';
 
 describe('Error Classes', () => {
@@ -118,6 +119,34 @@ describe('Error Classes', () => {
       expect(error.message).toBe('Validation Error: ');
       expect(error.statusCode).toBe(400);
       expect(error.isOperational).toBe(true);
+    });
+  });
+
+  describe('MissingEnvError', () => {
+    it('should include the variable name in the message and have status code 500', () => {
+      const variableName = 'API_KEY';
+      const error = new MissingEnvError(variableName);
+
+      expect(error.message).toBe(
+        `Environment variable "${variableName}" is missing or undefined`,
+      );
+      expect(error.statusCode).toBe(500);
+      expect(error.isOperational).toBe(true);
+      expect(error).toBeInstanceOf(MissingEnvError);
+      expect(error).toBeInstanceOf(AppError);
+    });
+
+    it('should handle an empty variable name gracefully', () => {
+      const variableName = '';
+      const error = new MissingEnvError(variableName);
+
+      expect(error.message).toBe(
+        'Environment variable "" is missing or undefined',
+      );
+      expect(error.statusCode).toBe(500);
+      expect(error.isOperational).toBe(true);
+      expect(error).toBeInstanceOf(MissingEnvError);
+      expect(error).toBeInstanceOf(AppError);
     });
   });
 });

@@ -1,7 +1,8 @@
 import { createLogger, format, transports } from 'winston';
+import getEnvVariable from '@common/utils/env.util';
 
 const logger = createLogger({
-  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+  level: getEnvVariable('NODE_ENV') === 'development' ? 'debug' : 'info',
   format: format.combine(
     format.timestamp(),
     format.errors({ stack: true }), // Include stack traces for errors

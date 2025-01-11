@@ -4,6 +4,7 @@ import { isQueryFailedErrorWithCode } from '@common/errors/query-failed.error';
 import { BadRequestError } from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
 import * as userRepository from '@modules/iam/repositories/user.repository';
+import { EntityManager } from 'typeorm';
 
 jest.mock('@database/config/typeorm.config', () => ({
   getRepository: jest.fn(),
@@ -74,6 +75,71 @@ describe('User Repository - createUser', () => {
     await expect(userRepository.createUser(mockUser)).rejects.toThrow(
       unexpectedError,
     );
+    expect(logger.error).toHaveBeenCalledWith(
+      'Repository Error:',
+      unexpectedError,
+    );
+    expect(isQueryFailedErrorWithCode).toHaveBeenCalledWith(unexpectedError);
+  });
+});
+
+describe('User Repository - createUserInTransaction', () => {
+  const mockEntityManager = {
+    getRepository: jest.fn(),
+  } as unknown as EntityManager;
+
+  const mockUserRepo = {
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockUser = { email: 'test@example.com', password: 'password123' };
+
+  beforeEach(() => {
+    mockEntityManager.getRepository = jest.fn().mockReturnValue(mockUserRepo);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should create and save a new user in a transaction', async () => {
+    const savedUser = { id: 1, ...mockUser };
+    mockUserRepo.create.mockReturnValue(mockUser);
+    mockUserRepo.save.mockResolvedValue(savedUser);
+
+    const result = await userRepository.createUserInTransaction(
+      mockEntityManager,
+      mockUser,
+    );
+
+    expect(mockEntityManager.getRepository).toHaveBeenCalledWith(User);
+    expect(mockUserRepo.create).toHaveBeenCalledWith(mockUser);
+    expect(mockUserRepo.save).toHaveBeenCalledWith(mockUser);
+    expect(result).toEqual(savedUser);
+  });
+
+  it('should throw BadRequestError if email already exists in a transaction', async () => {
+    const error = { code: '23505' };
+    mockUserRepo.create.mockReturnValue(mockUser);
+    mockUserRepo.save.mockRejectedValue(error);
+    (isQueryFailedErrorWithCode as unknown as jest.Mock).mockReturnValue(true);
+
+    await expect(
+      userRepository.createUserInTransaction(mockEntityManager, mockUser),
+    ).rejects.toThrow(new BadRequestError('Email already exists'));
+    expect(logger.error).toHaveBeenCalledWith('Repository Error:', error);
+    expect(isQueryFailedErrorWithCode).toHaveBeenCalledWith(error);
+  });
+
+  it('should rethrow unexpected errors in a transaction', async () => {
+    const unexpectedError = new Error('Unexpected Error');
+    mockUserRepo.create.mockReturnValue(mockUser);
+    mockUserRepo.save.mockRejectedValue(unexpectedError);
+
+    await expect(
+      userRepository.createUserInTransaction(mockEntityManager, mockUser),
+    ).rejects.toThrow(unexpectedError);
     expect(logger.error).toHaveBeenCalledWith(
       'Repository Error:',
       unexpectedError,

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { AppError } from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
+import getEnvVariable from '@common/utils/env.util';
 
 export const errorHandler = (
   err: AppError | Error,
@@ -18,7 +19,7 @@ export const errorHandler = (
       message: err.message,
       status: 'error',
       isOperational: err.isOperational,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+      ...(getEnvVariable('NODE_ENV') === 'development' && { stack: err.stack }),
     });
   } else {
     logger.error('Unhandled Error:', { error: err });

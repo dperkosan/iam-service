@@ -28,6 +28,7 @@ export default {
     '/dist/',
     'jest.config.ts',
     '/src/common/log/app.log.ts',
+    '/src/common/config/jwt.config.ts',
     '/src/database/config/typeorm.config.ts',
   ],
 };

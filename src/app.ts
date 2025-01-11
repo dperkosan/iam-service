@@ -3,11 +3,18 @@ import dataSource from '@database/config/typeorm.config';
 import { authRoutes } from '@modules/iam';
 import { errorHandler } from '@middleware/error.middleware';
 import logger from '@common/log/app.log';
+import redisClient from '@common/redis/redis.client';
+import { gracefulShutdown } from '@common/utils/shutdown.util';
 
 const app = express();
 
 (async () => {
   try {
+    // Initialize Redis connection
+    await redisClient.ping();
+    console.log('Redis connection established.');
+
+    // Initialize database connection
     await dataSource.initialize();
     console.log('Database connection established.');
 
@@ -25,24 +32,18 @@ const app = express();
       console.log('Server is running on http://localhost:3000');
     });
   } catch (error) {
-    logger.error('Error during Data Source initialization:', error);
+    logger.error('Error during initialization:', error);
     process.emit('SIGINT');
   }
 })();
 
 // Graceful Shutdown Handlers
 process.on('SIGINT', async () => {
-  if (dataSource.isInitialized) {
-    await dataSource.destroy();
-    console.log('Database connection closed.');
-  }
+  await gracefulShutdown();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  if (dataSource.isInitialized) {
-    await dataSource.destroy();
-    console.log('Database connection closed.');
-  }
+  await gracefulShutdown();
   process.exit(0);
 });
