@@ -5,7 +5,7 @@ import { TokenType } from '@modules/iam/enums/token-type.enum';
 import { TokenPayload } from '@modules/iam/types/token-payload.type';
 import { AppError } from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
-import { redisClient } from '@common/redis/redis.client';
+import { redisClient } from '@redis/redis.client';
 
 export const signToken = async (
   userId: User['id'],

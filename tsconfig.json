@@ -16,7 +16,8 @@
       "@common/*": ["src/common/*"],
       "@database/*": ["src/database/*"],
       "@middleware/*": ["src/middleware/*"],
-      "@modules/*": ["src/modules/*"]
+      "@modules/*": ["src/modules/*"],
+      "@redis/*": ["src/redis/*"]
     }
   },
   "include": ["src/**/*", "tests/**/*"],

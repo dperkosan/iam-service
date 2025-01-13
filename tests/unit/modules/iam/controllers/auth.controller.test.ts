@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { register } from '@modules/iam/controllers/auth.controller';
 import * as authService from '@modules/iam/services/auth.service';
 import { AppError } from '@common/errors/http-status.error';
-import { redisClient } from '@common/redis/redis.client'; // Adjust the import based on your setup
+import { redisClient } from '@redis/redis.client'; // Adjust the import based on your setup
 
 // Mock authService
 jest.mock('@modules/iam/services/auth.service');

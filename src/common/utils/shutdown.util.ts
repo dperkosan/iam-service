@@ -1,5 +1,5 @@
 import dataSource from '@database/config/typeorm.config';
-import { redisClient } from '@common/redis/redis.client';
+import { redisClient } from '@redis/redis.client';
 import logger from '@common/log/app.log';
 
 export const gracefulShutdown = async (): Promise<void> => {

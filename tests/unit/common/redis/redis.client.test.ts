@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 import logger from '@common/log/app.log';
 import getEnvVariable from '@common/utils/env.util';
-import { createRedisClient } from '@common/redis/redis.client';
+import { createRedisClient } from '@redis/redis.client';
 
 jest.mock('ioredis');
 jest.mock('@common/log/app.log');

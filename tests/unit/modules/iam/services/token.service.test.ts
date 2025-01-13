@@ -12,7 +12,7 @@ import logger from '@common/log/app.log';
 import { signToken, insertToken } from '@modules/iam/services/token.service';
 import jwtConfig from '@common/config/jwt.config';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
-import { redisClient } from '@common/redis/redis.client';
+import { redisClient } from '@redis/redis.client';
 import { AppError } from '@common/errors/http-status.error';
 import { Role } from '@modules/iam/enums/role.enum';
 
