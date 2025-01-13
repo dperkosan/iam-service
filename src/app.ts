@@ -3,7 +3,7 @@ import dataSource from '@database/config/typeorm.config';
 import { authRoutes } from '@modules/iam';
 import { errorHandler } from '@middleware/error.middleware';
 import logger from '@common/log/app.log';
-import redisClient from '@common/redis/redis.client';
+import { redisClient } from '@common/redis/redis.client';
 import { gracefulShutdown } from '@common/utils/shutdown.util';
 
 const app = express();

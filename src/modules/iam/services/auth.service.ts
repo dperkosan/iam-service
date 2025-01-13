@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import * as userRepository from '@modules/iam/repositories/user.repository';
 import { AppError } from '@common/errors/http-status.error';
@@ -6,10 +5,9 @@ import logger from '@common/log/app.log';
 import { hashData } from '@common/utils/hash.util';
 import dataSource from '@database/config/typeorm.config';
 import { randomUUID } from 'crypto';
-import { User } from '@modules/iam/entities/user.entity';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import jwtConfig from '@common/config/jwt.config';
-import { TokenPayload } from '@modules/iam/types/token-payload.type';
+import { insertToken, signToken } from '@modules/iam/services/token.service';
 
 export const register = async (registerDto: RegisterDto) => {
   try {
@@ -31,6 +29,15 @@ export const register = async (registerDto: RegisterDto) => {
         jwtConfig.emailVerificationTokenTtl,
         { tokenId },
       );
+
+      await insertToken(
+        createdUser.id,
+        TokenType.EMAIL_VERIFICATION,
+        tokenId,
+        jwtConfig.emailVerificationTokenTtl,
+      );
+
+      // TODO: Implement sending email verification link with "emailVerificationToken"
       console.log(emailVerificationToken);
 
       return createdUser;
@@ -50,40 +57,5 @@ export const register = async (registerDto: RegisterDto) => {
 
     logger.error('Unexpected Service Error:', error);
     throw new AppError('Service Error: Failed to register user', 500);
-  }
-};
-
-const signToken = async (
-  userId: User['id'],
-  tokenType: TokenType,
-  expiresIn: number,
-  payload?: TokenPayload,
-): Promise<string> => {
-  try {
-    return await new Promise((resolve, reject) => {
-      jwt.sign(
-        {
-          sub: userId,
-          tokenType,
-          ...payload,
-        },
-        jwtConfig.secret,
-        {
-          audience: jwtConfig.audience,
-          issuer: jwtConfig.issuer,
-          expiresIn,
-        },
-        (err, token) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(token as string);
-          }
-        },
-      );
-    });
-  } catch (error) {
-    logger.error('Failed to sign token:', error);
-    throw new AppError('Service Error: Failed to sign token', 500);
   }
 };

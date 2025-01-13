@@ -9,29 +9,34 @@ process.env.JWT_FORGOTTEN_PASSWORD_TOKEN_TTL = '2592000';
 
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import * as userRepository from '@modules/iam/repositories/user.repository';
+import * as tokenService from '@modules/iam/services/token.service';
 import { AppError } from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
 import * as authService from '@modules/iam/services/auth.service';
 import { Role } from '@modules/iam/enums/role.enum';
 import { hashData } from '@common/utils/hash.util';
 import dataSource from '@database/config/typeorm.config';
-import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
-import jwtConfig from '@common/config/jwt.config';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
+import jwtConfig from '@common/config/jwt.config';
 
+// Mock dependencies
 jest.mock('@modules/iam/repositories/user.repository');
-jest.mock('@common/log/app.log', () => ({
-  warn: jest.fn(),
-  error: jest.fn(),
-}));
 jest.mock('@common/utils/hash.util');
 jest.mock('@database/config/typeorm.config', () => ({
   transaction: jest.fn(),
 }));
-jest.mock('jsonwebtoken');
 jest.mock('crypto', () => ({
   randomUUID: jest.fn(),
+}));
+jest.mock('@modules/iam/services/token.service', () => ({
+  signToken: jest.fn(),
+  insertToken: jest.fn(),
+}));
+jest.mock('@common/log/app.log', () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
 }));
 
 describe('Auth Service - register', () => {
@@ -53,7 +58,7 @@ describe('Auth Service - register', () => {
     (randomUUID as jest.Mock).mockReturnValue(mockTokenId);
   });
 
-  it('should successfully create a user and generate an email verification token', async () => {
+  it('should successfully create a user, generate an email verification token, and save the token', async () => {
     // Arrange
     (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
     (dataSource.transaction as jest.Mock).mockImplementation(async (callback) =>
@@ -64,11 +69,10 @@ describe('Auth Service - register', () => {
     (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
       mockCreatedUser,
     );
-    (jwt.sign as jest.Mock).mockImplementation(
-      (_payload, _secret, _options, callback) => {
-        callback(null, mockEmailVerificationToken);
-      },
+    (tokenService.signToken as jest.Mock).mockResolvedValue(
+      mockEmailVerificationToken,
     );
+    (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
 
     // Act
     const result = await authService.register(mockRegisterDto);
@@ -82,19 +86,17 @@ describe('Auth Service - register', () => {
         password: mockHashedPassword,
       },
     );
-    expect(jwt.sign).toHaveBeenCalledWith(
-      {
-        sub: mockCreatedUser.id,
-        tokenType: TokenType.EMAIL_VERIFICATION,
-        tokenId: mockTokenId,
-      },
-      jwtConfig.secret,
-      {
-        audience: jwtConfig.audience,
-        issuer: jwtConfig.issuer,
-        expiresIn: jwtConfig.emailVerificationTokenTtl,
-      },
-      expect.any(Function),
+    expect(tokenService.signToken).toHaveBeenCalledWith(
+      mockCreatedUser.id,
+      TokenType.EMAIL_VERIFICATION,
+      jwtConfig.emailVerificationTokenTtl,
+      { tokenId: mockTokenId },
+    );
+    expect(tokenService.insertToken).toHaveBeenCalledWith(
+      mockCreatedUser.id,
+      TokenType.EMAIL_VERIFICATION,
+      mockTokenId,
+      jwtConfig.emailVerificationTokenTtl,
     );
     expect(result).toEqual(mockCreatedUser);
   });
@@ -159,18 +161,14 @@ describe('Auth Service - register', () => {
     (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
       mockCreatedUser,
     );
-    (jwt.sign as jest.Mock).mockImplementation(
-      (_payload, _secret, _options, callback) => {
-        callback(tokenError);
-      },
-    );
+    (tokenService.signToken as jest.Mock).mockRejectedValue(tokenError);
 
     // Act & Assert
     await expect(authService.register(mockRegisterDto)).rejects.toThrow(
-      new AppError('Service Error: Failed to sign token', 500),
+      new AppError('Service Error: Failed to register user', 500),
     );
     expect(logger.error).toHaveBeenCalledWith(
-      'Failed to sign token:',
+      'Unexpected Service Error:',
       tokenError,
     );
   });
