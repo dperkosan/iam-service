@@ -17,7 +17,7 @@ import { AppError } from '@common/errors/http-status.error';
 import { Role } from '@modules/iam/enums/role.enum';
 
 jest.mock('jsonwebtoken');
-jest.mock('@common/redis/redis.client', () => ({
+jest.mock('@redis/redis.client', () => ({
   redisClient: {
     set: jest.fn(),
   },

@@ -8,7 +8,7 @@ import { redisClient } from '@redis/redis.client'; // Adjust the import based on
 jest.mock('@modules/iam/services/auth.service');
 
 // Mock Redis
-jest.mock('@common/redis/redis.client', () => {
+jest.mock('@redis/redis.client', () => {
   const mockRedisClient = {
     get: jest.fn(),
     set: jest.fn(),
