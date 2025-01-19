@@ -6,7 +6,7 @@ const logger = createLogger({
   format: format.combine(
     format.timestamp(),
     format.errors({ stack: true }), // Include stack traces for errors
-    format.json(), // Log in JSON format
+    format.json({ space: 2 }), // Log in JSON format
   ),
   transports: [
     new transports.Console({

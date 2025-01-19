@@ -46,9 +46,14 @@ describe('Auth Service - register', () => {
     email: 'test@example.com',
     password: 'password123',
     role: Role.ADMIN,
+    organizationId: 'org-1234',
   };
 
-  const mockCreatedUser = { id: 1, email: 'test@example.com' };
+  const mockCreatedUser = {
+    id: 1,
+    email: 'test@example.com',
+    organizationId: 'org-1234',
+  };
   const mockHashedPassword = 'hashedPassword123';
   const mockTokenId = 'mock-token-id';
   const mockEmailVerificationToken = 'mock-email-verification-token';
@@ -58,118 +63,130 @@ describe('Auth Service - register', () => {
     (randomUUID as jest.Mock).mockReturnValue(mockTokenId);
   });
 
-  it('should successfully create a user, generate an email verification token, and save the token', async () => {
-    // Arrange
-    (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
-    (dataSource.transaction as jest.Mock).mockImplementation(async (callback) =>
-      callback({
-        getRepository: jest.fn(),
-      }),
-    );
-    (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
-      mockCreatedUser,
-    );
-    (tokenService.signToken as jest.Mock).mockResolvedValue(
-      mockEmailVerificationToken,
-    );
-    (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
+  describe('when user registration is successful', () => {
+    it('should create a user, generate an email verification token, and save the token', async () => {
+      // Arrange
+      (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
+      (dataSource.transaction as jest.Mock).mockImplementation(
+        async (callback) =>
+          callback({
+            getRepository: jest.fn(),
+          }),
+      );
+      (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
+        mockCreatedUser,
+      );
+      (tokenService.signToken as jest.Mock).mockResolvedValue(
+        mockEmailVerificationToken,
+      );
+      (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
 
-    // Act
-    const result = await authService.register(mockRegisterDto);
+      // Act
+      const result = await authService.register(mockRegisterDto);
 
-    // Assert
-    expect(hashData).toHaveBeenCalledWith(mockRegisterDto.password);
-    expect(userRepository.createUserInTransaction).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        ...mockRegisterDto,
-        password: mockHashedPassword,
-      },
-    );
-    expect(tokenService.signToken).toHaveBeenCalledWith(
-      mockCreatedUser.id,
-      TokenType.EMAIL_VERIFICATION,
-      jwtConfig.emailVerificationTokenTtl,
-      { tokenId: mockTokenId },
-    );
-    expect(tokenService.insertToken).toHaveBeenCalledWith(
-      mockCreatedUser.id,
-      TokenType.EMAIL_VERIFICATION,
-      mockTokenId,
-      jwtConfig.emailVerificationTokenTtl,
-    );
-    expect(result).toEqual(mockCreatedUser);
+      // Assert
+      expect(hashData).toHaveBeenCalledWith(mockRegisterDto.password);
+      expect(userRepository.createUserInTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        {
+          ...mockRegisterDto,
+          password: mockHashedPassword,
+        },
+      );
+      expect(tokenService.signToken).toHaveBeenCalledWith(
+        mockCreatedUser.id,
+        TokenType.EMAIL_VERIFICATION,
+        jwtConfig.emailVerificationTokenTtl,
+        { tokenId: mockTokenId },
+      );
+      expect(tokenService.insertToken).toHaveBeenCalledWith(
+        mockCreatedUser.id,
+        TokenType.EMAIL_VERIFICATION,
+        mockTokenId,
+        jwtConfig.emailVerificationTokenTtl,
+      );
+      expect(result).toEqual(mockCreatedUser);
+    });
   });
 
-  it('should throw validation/conflict error and log warning', async () => {
-    // Arrange
-    const validationError = new AppError(
-      'Validation Error: Email already exists',
-      400,
-    );
-    (dataSource.transaction as jest.Mock).mockRejectedValue(validationError);
+  describe('when email and organization already exist', () => {
+    it('should throw validation/conflict error and log a warning', async () => {
+      // Arrange
+      const validationError = new AppError(
+        'Validation Error: Email and organizationId combination already exists',
+        400,
+      );
+      (dataSource.transaction as jest.Mock).mockRejectedValue(validationError);
 
-    // Act & Assert
-    await expect(authService.register(mockRegisterDto)).rejects.toThrow(
-      validationError,
-    );
-    expect(logger.warn).toHaveBeenCalledWith(
-      'Validation or Conflict Error:',
-      validationError.message,
-    );
+      // Act & Assert
+      await expect(authService.register(mockRegisterDto)).rejects.toThrow(
+        validationError,
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Validation or Conflict Error:',
+        validationError.message,
+      );
+    });
   });
 
-  it('should throw a generic service error for other AppErrors and log warning', async () => {
-    // Arrange
-    const genericAppError = new AppError('Some other service error', 500);
-    (dataSource.transaction as jest.Mock).mockRejectedValue(genericAppError);
+  describe('when a generic service error occurs', () => {
+    it('should throw a generic service error and log a warning', async () => {
+      // Arrange
+      const genericAppError = new AppError('Some other service error', 500);
+      (dataSource.transaction as jest.Mock).mockRejectedValue(genericAppError);
 
-    // Act & Assert
-    await expect(authService.register(mockRegisterDto)).rejects.toThrow(
-      genericAppError,
-    );
-    expect(logger.warn).toHaveBeenCalledWith(
-      'Service Error:',
-      genericAppError.message,
-    );
+      // Act & Assert
+      await expect(authService.register(mockRegisterDto)).rejects.toThrow(
+        genericAppError,
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Service Error:',
+        genericAppError.message,
+      );
+    });
   });
 
-  it('should throw an unexpected error and log it', async () => {
-    // Arrange
-    const unexpectedError = new Error('Unexpected Error');
-    (dataSource.transaction as jest.Mock).mockRejectedValue(unexpectedError);
+  describe('when an unexpected error occurs', () => {
+    it('should throw a service error and log the unexpected error', async () => {
+      // Arrange
+      const unexpectedError = new Error('Unexpected Error');
+      (dataSource.transaction as jest.Mock).mockRejectedValue(unexpectedError);
 
-    // Act & Assert
-    await expect(authService.register(mockRegisterDto)).rejects.toThrow(
-      new AppError('Service Error: Failed to register user', 500),
-    );
-    expect(logger.error).toHaveBeenCalledWith(
-      'Unexpected Service Error:',
-      unexpectedError,
-    );
+      // Act & Assert
+      await expect(authService.register(mockRegisterDto)).rejects.toThrow(
+        new AppError('Service Error: Failed to register user', 500),
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        'Unexpected Service Error:',
+        unexpectedError,
+      );
+    });
   });
 
-  it('should throw an error if token generation fails', async () => {
-    // Arrange
-    const tokenError = new Error('Token generation failed');
-    (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
-    (dataSource.transaction as jest.Mock).mockImplementation(async (callback) =>
-      callback({
-        getRepository: jest.fn(),
-      }),
-    );
-    (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
-      mockCreatedUser,
-    );
-    (tokenService.signToken as jest.Mock).mockRejectedValue(tokenError);
+  describe('when token generation fails', () => {
+    it('should throw a service error and log the token generation error', async () => {
+      // Arrange
+      const tokenError = new Error('Token generation failed');
+      (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
+      (dataSource.transaction as jest.Mock).mockImplementation(
+        async (callback) =>
+          callback({
+            getRepository: jest.fn(),
+          }),
+      );
+      (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
+        mockCreatedUser,
+      );
+      (tokenService.signToken as jest.Mock).mockRejectedValue(tokenError);
 
-    // Act & Assert
-    await expect(authService.register(mockRegisterDto)).rejects.toThrow(
-      new AppError('Service Error: Failed to register user', 500),
-    );
-    expect(logger.error).toHaveBeenCalledWith(
-      'Unexpected Service Error:',
-      tokenError,
-    );
+      // Act & Assert
+      await expect(authService.register(mockRegisterDto)).rejects.toThrow(
+        new AppError('Service Error: Failed to register user', 500),
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        'Unexpected Service Error:',
+        tokenError,
+      );
+    });
   });
 });

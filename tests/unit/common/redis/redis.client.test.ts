@@ -30,43 +30,58 @@ describe('Redis Client', () => {
     jest.clearAllMocks();
   });
 
-  it('should create a Redis client with the correct configuration', () => {
-    const client = createRedisClient();
-    expect(Redis).toHaveBeenCalledWith('redis://localhost:6379');
-    expect(client).toBeDefined();
+  describe('when creating a Redis client', () => {
+    it('should create a Redis client with the correct configuration', () => {
+      const client = createRedisClient();
+      expect(Redis).toHaveBeenCalledWith('redis://localhost:6379');
+      expect(client).toBeDefined();
+    });
   });
 
-  it('should log an error when the Redis client emits an error', () => {
-    createRedisClient();
-    const errorHandler = redisMock.on.mock.calls.find(
-      ([eventName]) => eventName === 'error',
-    )?.[1];
+  describe('when handling Redis client events', () => {
+    describe('when an error occurs', () => {
+      it('should log an error when the Redis client emits an error', () => {
+        createRedisClient();
+        const errorHandler = redisMock.on.mock.calls.find(
+          ([eventName]) => eventName === 'error',
+        )?.[1];
 
-    const error = new Error('Redis connection error');
-    errorHandler?.(error);
+        const error = new Error('Redis connection error');
+        errorHandler?.(error);
 
-    expect(logger.error).toHaveBeenCalledWith('Redis connection error:', error);
-  });
+        expect(logger.error).toHaveBeenCalledWith(
+          'Redis connection error:',
+          error,
+        );
+      });
+    });
 
-  it('should log a message when the Redis client connects', () => {
-    createRedisClient();
-    const connectHandler = redisMock.on.mock.calls.find(
-      ([eventName]) => eventName === 'connect',
-    )?.[1];
+    describe('when the client connects', () => {
+      it('should log a message when the Redis client connects', () => {
+        createRedisClient();
+        const connectHandler = redisMock.on.mock.calls.find(
+          ([eventName]) => eventName === 'connect',
+        )?.[1];
 
-    connectHandler?.();
+        connectHandler?.();
 
-    expect(logger.info).toHaveBeenCalledWith('Redis connected successfully.');
-  });
+        expect(logger.info).toHaveBeenCalledWith(
+          'Redis connected successfully.',
+        );
+      });
+    });
 
-  it('should log a message when the Redis client disconnects', () => {
-    createRedisClient();
-    const closeHandler = redisMock.on.mock.calls.find(
-      ([eventName]) => eventName === 'close',
-    )?.[1];
+    describe('when the client disconnects', () => {
+      it('should log a message when the Redis client disconnects', () => {
+        createRedisClient();
+        const closeHandler = redisMock.on.mock.calls.find(
+          ([eventName]) => eventName === 'close',
+        )?.[1];
 
-    closeHandler?.();
+        closeHandler?.();
 
-    expect(logger.info).toHaveBeenCalledWith('Redis connection closed.');
+        expect(logger.info).toHaveBeenCalledWith('Redis connection closed.');
+      });
+    });
   });
 });

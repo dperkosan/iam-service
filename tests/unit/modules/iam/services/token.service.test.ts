@@ -37,81 +37,89 @@ const tokenId = 'mockTokenId';
 
 describe('Token Service', () => {
   describe('signToken', () => {
-    it('should sign a token successfully', async () => {
-      jest.spyOn(jwt, 'sign').mockImplementation((_, __, ___, callback) => {
-        callback(null, token);
+    describe('when signing a token successfully', () => {
+      it('should sign a token and return it', async () => {
+        jest.spyOn(jwt, 'sign').mockImplementation((_, __, ___, callback) => {
+          callback(null, token);
+        });
+
+        const result = await signToken(userId, tokenType, expiresIn, payload);
+
+        expect(result).toBe(token);
+        expect(jwt.sign).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sub: userId,
+            tokenType,
+            ...payload,
+          }),
+          jwtConfig.secret,
+          expect.objectContaining({
+            audience: jwtConfig.audience,
+            issuer: jwtConfig.issuer,
+            expiresIn,
+          }),
+          expect.any(Function),
+        );
       });
-
-      const result = await signToken(userId, tokenType, expiresIn, payload);
-
-      expect(result).toBe(token);
-      expect(jwt.sign).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: userId,
-          tokenType,
-          ...payload,
-        }),
-        jwtConfig.secret,
-        expect.objectContaining({
-          audience: jwtConfig.audience,
-          issuer: jwtConfig.issuer,
-          expiresIn,
-        }),
-        expect.any(Function),
-      );
     });
 
-    it('should throw an AppError if token signing fails', async () => {
-      jest.spyOn(jwt, 'sign').mockImplementation((_, __, ___, callback) => {
-        callback(new Error('JWT Signing Error'), undefined);
+    describe('when signing a token fails', () => {
+      it('should throw an AppError and log the error', async () => {
+        jest.spyOn(jwt, 'sign').mockImplementation((_, __, ___, callback) => {
+          callback(new Error('JWT Signing Error'), undefined);
+        });
+
+        await expect(
+          signToken(userId, tokenType, expiresIn, payload),
+        ).rejects.toThrow(AppError);
+        await expect(
+          signToken(userId, tokenType, expiresIn, payload),
+        ).rejects.toThrow('Service Error: Failed to sign token');
+
+        // Ensure logger.error is called
+        expect(logger.error).toHaveBeenCalledWith(
+          'Failed to sign token:',
+          expect.any(Error),
+        );
       });
-
-      await expect(
-        signToken(userId, tokenType, expiresIn, payload),
-      ).rejects.toThrow(AppError);
-      await expect(
-        signToken(userId, tokenType, expiresIn, payload),
-      ).rejects.toThrow('Service Error: Failed to sign token');
-
-      // Ensure logger.error is called
-      expect(logger.error).toHaveBeenCalledWith(
-        'Failed to sign token:',
-        expect.any(Error),
-      );
     });
   });
 
   describe('insertToken', () => {
-    it('should insert a token into Redis successfully', async () => {
-      const redisSetSpy = jest
-        .spyOn(redisClient, 'set')
-        .mockResolvedValue('OK');
+    describe('when inserting a token into Redis successfully', () => {
+      it('should insert the token and return successfully', async () => {
+        const redisSetSpy = jest
+          .spyOn(redisClient, 'set')
+          .mockResolvedValue('OK');
 
-      await insertToken(userId, tokenType, tokenId, expiresIn);
+        await insertToken(userId, tokenType, tokenId, expiresIn);
 
-      expect(redisSetSpy).toHaveBeenCalledWith(
-        `${tokenType}-user-${userId}`,
-        tokenId,
-        'EX',
-        expiresIn,
-      );
+        expect(redisSetSpy).toHaveBeenCalledWith(
+          `${tokenType}-user-${userId}`,
+          tokenId,
+          'EX',
+          expiresIn,
+        );
+      });
     });
 
-    it('should handle Redis set errors', async () => {
-      const redisSetSpy = jest
-        .spyOn(redisClient, 'set')
-        .mockRejectedValue(new Error('Redis Error'));
+    describe('when Redis set operation fails', () => {
+      it('should throw an error and not insert the token', async () => {
+        const redisSetSpy = jest
+          .spyOn(redisClient, 'set')
+          .mockRejectedValue(new Error('Redis Error'));
 
-      await expect(
-        insertToken(userId, tokenType, tokenId, expiresIn),
-      ).rejects.toThrow('Redis Error');
+        await expect(
+          insertToken(userId, tokenType, tokenId, expiresIn),
+        ).rejects.toThrow('Redis Error');
 
-      expect(redisSetSpy).toHaveBeenCalledWith(
-        `${tokenType}-user-${userId}`,
-        tokenId,
-        'EX',
-        expiresIn,
-      );
+        expect(redisSetSpy).toHaveBeenCalledWith(
+          `${tokenType}-user-${userId}`,
+          tokenId,
+          'EX',
+          expiresIn,
+        );
+      });
     });
   });
 });

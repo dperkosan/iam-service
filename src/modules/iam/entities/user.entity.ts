@@ -1,9 +1,11 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 
 import { BaseUuid } from '@common/entities/base-uuid.entity';
 import { Role } from '@modules/iam/enums/role.enum';
+import { Organization } from '@modules/organizations/entities/organization.entity';
 
 @Entity()
+@Index(['email', 'organizationId'], { unique: true })
 export class User extends BaseUuid {
   @Column({ type: 'varchar', length: 255 })
   firstName!: string;
@@ -11,7 +13,7 @@ export class User extends BaseUuid {
   @Column({ type: 'varchar', length: 255 })
   lastName!: string;
 
-  @Column({ type: 'varchar', length: 255, unique: true })
+  @Column({ type: 'varchar', length: 255 })
   email!: string;
 
   @Column({ type: 'varchar', length: 255 })
@@ -34,4 +36,13 @@ export class User extends BaseUuid {
     default: true,
   })
   enabled!: boolean;
+
+  @ManyToOne(() => Organization, (organization) => organization.users, {
+    nullable: false,
+  })
+  @JoinColumn({ name: 'organizationId' })
+  organization!: Organization;
+
+  @Column({ type: 'uuid' })
+  organizationId!: string;
 }

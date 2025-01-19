@@ -22,7 +22,10 @@ export const errorHandler = (
       ...(getEnvVariable('NODE_ENV') === 'development' && { stack: err.stack }),
     });
   } else {
-    logger.error('Unhandled Error:', { error: err });
+    logger.error('Unhandled Error:', {
+      message: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({
       message: 'Internal Server Error',
       status: 'error',

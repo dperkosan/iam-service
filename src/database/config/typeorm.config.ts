@@ -31,8 +31,8 @@ const environmentOverrides: Record<
   development: {
     ...baseConfig,
     database: getEnvVariable('DB_NAME'),
-    factories: ['src/**/*.factory.ts'],
-    seeds: ['src/database/seeds/*.ts'],
+    factories: ['dist/**/*.factory.js'],
+    seeds: ['dist/src/database/seeds/*.js'],
     logging: true,
   },
   test: {

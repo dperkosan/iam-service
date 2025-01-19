@@ -24,11 +24,13 @@ export default {
   },
   coveragePathIgnorePatterns: [
     // Ignore specific files or directories
-    '/node_modules/',
-    '/dist/',
+    'node_modules/',
+    'dist/',
     'jest.config.ts',
-    '/src/common/log/app.log.ts',
-    '/src/common/config/jwt.config.ts',
-    '/src/database/config/typeorm.config.ts',
+    'src/common/log/app.log.ts',
+    'src/common/config/jwt.config.ts',
+    'src/database/config/typeorm.config.ts',
+    'src/.*\\.entity\\.ts$',
+    'src/.*\\.factory\\.ts$',
   ],
 };

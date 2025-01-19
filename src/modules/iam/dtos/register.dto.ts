@@ -4,9 +4,11 @@ import {
   IsEnum,
   IsNotEmpty,
   IsString,
+  IsUUID,
   MinLength,
 } from 'class-validator';
 import { Role } from '@modules/iam/enums/role.enum';
+import { Organization } from '@modules/organizations/entities/organization.entity';
 
 export class RegisterDto {
   @IsString()
@@ -33,4 +35,8 @@ export class RegisterDto {
   @IsEnum(Role)
   @IsNotEmpty()
   readonly role!: Role;
+
+  @IsUUID()
+  @IsNotEmpty()
+  readonly organizationId!: Organization['id'];
 }

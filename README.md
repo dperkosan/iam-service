@@ -40,25 +40,31 @@ Follow these steps to set up and run the application:
    cp .env.example .env
    ```
 
-5. **Run database migrations**:
+5. **Install javascript dependencies**:
+
+   ```bash
+   npm install
+   ```
+
+6. **Run database migrations**:
 
    ```bash
    npm run migration:run
    ```
 
-6. **Seed the database**:
+7. **Seed the database**:
 
    ```bash
    npm run seed
    ```
 
-7. **Run the development server**:
+8. **Run the development server**:
 
    ```bash
    npm run dev
    ```
 
-8. **Access the application**:
+9. **Access the application**:
    Open your browser and navigate to: [http://localhost:3000](http://localhost:3000)
 
 ---
@@ -154,7 +160,7 @@ This command will:
 
 - Delete all existing data from the DB
 - Execute the `seed:run` command from the `typeorm-extension` package.
-- Use the database configuration file located at `dist/database/config/typeorm.config`.
+- Use the database configuration file located at `src/database/config/typeorm.config.ts`.
 
 ### Creating New Seeders
 
@@ -166,18 +172,7 @@ To create a new seeder file, create a factory file within entities folder and up
 
 To add a new endpoint to the project, follow these steps:
 
-1. **Create a DTO (Data Transfer Object)**:
-
-   - Define the structure of the incoming data in the `dtos` folder.
-   - Example: If you're adding a new endpoint for `createOrder`, create a file named `create-order.dto.ts`:
-     ```typescript
-     export class CreateOrderDto {
-       readonly productId: string;
-       readonly quantity: number;
-     }
-     ```
-
-2. **Add a new entity or update an existing one**:
+1. **Add a new entity or update an existing one**:
 
    - If the endpoint requires a new database entity, create it in the `entities` folder.
    - Example: Add `order.entity.ts`:
@@ -198,34 +193,23 @@ To add a new endpoint to the project, follow these steps:
      }
      ```
 
-3. **Update or create a repository**:
+2. **Create a Migration file**:
 
-   - Add repository logic in the `repositories` folder. Example: Add `order.repository.ts`:
+   - Check: [Database Migrations](#database-migrations)
 
+3. **Create new seeders**:
+
+   - To create a new seeder file, create a factory file within entities folder and update `database/seeds/seed.ts` file.
+
+4. **Create a DTO (Data Transfer Object)**:
+
+   - Define the structure of the incoming data in the `dtos` folder.
+   - Example: If you're adding a new endpoint for `createOrder`, create a file named `create-order.dto.ts`:
      ```typescript
-     import dataSource from '@database/config/typeorm.config';
-     import { Order } from '@modules/iam/entities/order.entity';
-
-     export const orderRepository = dataSource.getRepository(Order);
-     export const createOrder = async (
-       order: Partial<Order>,
-     ): Promise<Order> => {
-       const newOrder = orderRepository.create(order);
-       return await orderRepository.save(newOrder);
-     };
-     ```
-
-4. **Add business logic in the service layer**:
-
-   - Add the core business logic in the `services` folder. Example: Add `order.service.ts`:
-
-     ```typescript
-     import { CreateOrderDto } from '@modules/iam/dtos/create-order.dto';
-     import { createOrder } from '@modules/iam/repositories/order.repository';
-
-     export const createNewOrder = async (dto: CreateOrderDto) => {
-       return await createOrder(dto);
-     };
+     export class CreateOrderDto {
+       readonly productId: string;
+       readonly quantity: number;
+     }
      ```
 
 5. **Add a controller**:
@@ -247,7 +231,37 @@ To add a new endpoint to the project, follow these steps:
      };
      ```
 
-6. **Add the route**:
+6. **Add business logic in the service layer**:
+
+   - Add the core business logic in the `services` folder. Example: Add `order.service.ts`:
+
+     ```typescript
+     import { CreateOrderDto } from '@modules/iam/dtos/create-order.dto';
+     import { createOrder } from '@modules/iam/repositories/order.repository';
+
+     export const createNewOrder = async (dto: CreateOrderDto) => {
+       return await createOrder(dto);
+     };
+     ```
+
+7. **Update or create a repository**:
+
+   - Add repository logic in the `repositories` folder. Example: Add `order.repository.ts`:
+
+     ```typescript
+     import dataSource from '@database/config/typeorm.config';
+     import { Order } from '@modules/iam/entities/order.entity';
+
+     export const orderRepository = dataSource.getRepository(Order);
+     export const createOrder = async (
+       order: Partial<Order>,
+     ): Promise<Order> => {
+       const newOrder = orderRepository.create(order);
+       return await orderRepository.save(newOrder);
+     };
+     ```
+
+8. **Add the route**:
 
    - Register the new endpoint in the `routes` folder. Example: Add `order.routes.ts`:
 
@@ -263,7 +277,7 @@ To add a new endpoint to the project, follow these steps:
      export default router;
      ```
 
-7. **Register the route in the main module**:
+9. **Register the route in the main module**:
 
    - Update the `index.ts` file to include the new route:
 
@@ -279,8 +293,9 @@ To add a new endpoint to the project, follow these steps:
      app.use('/order', orderRoutes);
      ```
 
-8. **Test the endpoint**:
-   - Add unit and integration tests for your new logic in the appropriate test folders (`tests/unit` and `tests/integration`).
+10. **Test the endpoint**:
+
+- Add unit and integration tests for your new logic in the appropriate test folders (`tests/unit` and `tests/integration`).
 
 By following this structure, you ensure consistency, maintainability, and scalability across the project.
 
