@@ -10,6 +10,7 @@ process.env.JWT_FORGOTTEN_PASSWORD_TOKEN_TTL = '2592000';
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import * as userRepository from '@modules/iam/repositories/user.repository';
 import * as tokenService from '@modules/iam/services/token.service';
+import * as mailerService from '@modules/iam/services/mailer.service';
 import { AppError } from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
 import * as authService from '@modules/iam/services/auth.service';
@@ -32,6 +33,9 @@ jest.mock('crypto', () => ({
 jest.mock('@modules/iam/services/token.service', () => ({
   signToken: jest.fn(),
   insertToken: jest.fn(),
+}));
+jest.mock('@modules/iam/services/mailer.service', () => ({
+  sendEmailVerification: jest.fn(),
 }));
 jest.mock('@common/log/app.log', () => ({
   info: jest.fn(),
@@ -64,7 +68,7 @@ describe('Auth Service - register', () => {
   });
 
   describe('when user registration is successful', () => {
-    it('should create a user, generate an email verification token, and save the token', async () => {
+    it('should create a user, generate an email verification token, save the token, and send an email', async () => {
       // Arrange
       (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
       (dataSource.transaction as jest.Mock).mockImplementation(
@@ -80,6 +84,9 @@ describe('Auth Service - register', () => {
         mockEmailVerificationToken,
       );
       (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
+      (mailerService.sendEmailVerification as jest.Mock).mockResolvedValue(
+        undefined,
+      );
 
       // Act
       const result = await authService.register(mockRegisterDto);
@@ -104,6 +111,10 @@ describe('Auth Service - register', () => {
         TokenType.EMAIL_VERIFICATION,
         mockTokenId,
         jwtConfig.emailVerificationTokenTtl,
+      );
+      expect(mailerService.sendEmailVerification).toHaveBeenCalledWith(
+        mockCreatedUser.email,
+        mockEmailVerificationToken,
       );
       expect(result).toEqual(mockCreatedUser);
     });

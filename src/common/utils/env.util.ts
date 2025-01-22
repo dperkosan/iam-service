@@ -11,6 +11,11 @@ const requiredEnvVariables: Record<string, string[]> = {
     'JWT_REFRESH_TOKEN_TTL',
     'JWT_EMAIL_VERIFICATION_TOKEN_TTL',
     'JWT_FORGOTTEN_PASSWORD_TOKEN_TTL',
+    'SMTP_HOST',
+    'SMTP_PORT',
+    'SMTP_USER',
+    'SMTP_PASS',
+    'SMTP_FROM',
   ], // Required in all environments
   test: ['DB_HOST', 'DB_NAME_TEST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'], // Required only in test environment
   development: ['DB_HOST', 'DB_NAME', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'], // Required in dev

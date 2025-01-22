@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import jwtConfig from '@common/config/jwt.config';
 import { insertToken, signToken } from '@modules/iam/services/token.service';
+import { sendEmailVerification } from '@modules/iam/services/mailer.service';
 
 export const register = async (registerDto: RegisterDto) => {
   try {
@@ -37,8 +38,7 @@ export const register = async (registerDto: RegisterDto) => {
         jwtConfig.emailVerificationTokenTtl,
       );
 
-      // TODO: Implement sending email verification link with "emailVerificationToken"
-      console.log(emailVerificationToken);
+      await sendEmailVerification(createdUser.email, emailVerificationToken);
 
       return createdUser;
     });
