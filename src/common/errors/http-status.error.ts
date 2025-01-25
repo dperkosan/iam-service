@@ -8,6 +8,7 @@ export class AppError extends Error {
     isOperational: boolean = true,
   ) {
     super(message);
+    this.name = this.constructor.name;
     this.statusCode = statusCode;
     this.isOperational = isOperational;
 

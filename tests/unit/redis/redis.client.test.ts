@@ -1,7 +1,8 @@
 import Redis from 'ioredis';
 import logger from '@common/log/app.log';
 import getEnvVariable from '@common/utils/env.util';
-import { createRedisClient } from '@redis/redis.client';
+import { createRedisClient, redisClient } from '@redis/redis.client';
+import { MissingEnvError } from '@common/errors/http-status.error';
 
 jest.mock('ioredis');
 jest.mock('@common/log/app.log');
@@ -32,23 +33,52 @@ describe('Redis Client', () => {
 
   describe('when creating a Redis client', () => {
     it('should create a Redis client with the correct configuration', () => {
+      // Act
       const client = createRedisClient();
+
+      // Assert
       expect(Redis).toHaveBeenCalledWith('redis://localhost:6379');
       expect(client).toBeDefined();
+    });
+
+    it('should return a singleton instance for redisClient', () => {
+      // Act
+      const instance1 = redisClient;
+      const instance2 = redisClient;
+
+      // Assert
+      expect(instance1).toBe(instance2);
     });
   });
 
   describe('when handling Redis client events', () => {
+    it('should register event listeners for error, connect, and close', () => {
+      // Act
+      createRedisClient();
+
+      // Assert
+      expect(redisMock.on).toHaveBeenCalledWith('error', expect.any(Function));
+      expect(redisMock.on).toHaveBeenCalledWith(
+        'connect',
+        expect.any(Function),
+      );
+      expect(redisMock.on).toHaveBeenCalledWith('close', expect.any(Function));
+    });
+
     describe('when an error occurs', () => {
       it('should log an error when the Redis client emits an error', () => {
+        // Arrange
         createRedisClient();
         const errorHandler = redisMock.on.mock.calls.find(
           ([eventName]) => eventName === 'error',
         )?.[1];
 
         const error = new Error('Redis connection error');
+
+        // Act
         errorHandler?.(error);
 
+        // Assert
         expect(logger.error).toHaveBeenCalledWith(
           'Redis connection error:',
           error,
@@ -58,13 +88,16 @@ describe('Redis Client', () => {
 
     describe('when the client connects', () => {
       it('should log a message when the Redis client connects', () => {
+        // Arrange
         createRedisClient();
         const connectHandler = redisMock.on.mock.calls.find(
           ([eventName]) => eventName === 'connect',
         )?.[1];
 
+        // Act
         connectHandler?.();
 
+        // Assert
         expect(logger.info).toHaveBeenCalledWith(
           'Redis connected successfully.',
         );
@@ -73,15 +106,46 @@ describe('Redis Client', () => {
 
     describe('when the client disconnects', () => {
       it('should log a message when the Redis client disconnects', () => {
+        // Arrange
         createRedisClient();
         const closeHandler = redisMock.on.mock.calls.find(
           ([eventName]) => eventName === 'close',
         )?.[1];
 
+        // Act
         closeHandler?.();
 
+        // Assert
         expect(logger.info).toHaveBeenCalledWith('Redis connection closed.');
       });
+    });
+  });
+
+  describe('when environment variables are missing or invalid', () => {
+    it('should throw an error if REDIS_URL is missing', () => {
+      // Arrange
+      (getEnvVariable as jest.Mock).mockImplementation((key) => {
+        if (key === 'REDIS_URL') {
+          throw new MissingEnvError(key);
+        }
+        return '6379';
+      });
+
+      // Act & Assert
+      expect(() => createRedisClient()).toThrow();
+    });
+
+    it('should throw an error if REDIS_PORT is missing', () => {
+      // Arrange
+      (getEnvVariable as jest.Mock).mockImplementation((key) => {
+        if (key === 'REDIS_PORT') {
+          throw new MissingEnvError(key);
+        }
+        return 'redis://localhost';
+      });
+
+      // Act & Assert
+      expect(() => createRedisClient()).toThrow();
     });
   });
 });

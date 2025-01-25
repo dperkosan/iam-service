@@ -28,23 +28,30 @@ jest.mock('@common/log/app.log', () => ({
   info: jest.fn(),
 }));
 
-const userId = '12345';
-const tokenType = TokenType.EMAIL_VERIFICATION;
-const payload = { role: Role.USER };
-const expiresIn = 3600;
-const token = 'mockToken';
-const tokenId = 'mockTokenId';
-
 describe('Token Service', () => {
+  const userId = '12345';
+  const tokenType = TokenType.EMAIL_VERIFICATION;
+  const payload = { role: Role.USER };
+  const expiresIn = 3600;
+  const token = 'mockToken';
+  const tokenId = 'mockTokenId';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('signToken', () => {
     describe('when signing a token successfully', () => {
       it('should sign a token and return it', async () => {
+        // Arrange
         jest.spyOn(jwt, 'sign').mockImplementation((_, __, ___, callback) => {
           callback(null, token);
         });
 
+        // Act
         const result = await signToken(userId, tokenType, expiresIn, payload);
 
+        // Assert
         expect(result).toBe(token);
         expect(jwt.sign).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -65,18 +72,18 @@ describe('Token Service', () => {
 
     describe('when signing a token fails', () => {
       it('should throw an AppError and log the error', async () => {
+        // Arrange
         jest.spyOn(jwt, 'sign').mockImplementation((_, __, ___, callback) => {
           callback(new Error('JWT Signing Error'), undefined);
         });
 
+        // Act & Assert
         await expect(
           signToken(userId, tokenType, expiresIn, payload),
         ).rejects.toThrow(AppError);
         await expect(
           signToken(userId, tokenType, expiresIn, payload),
         ).rejects.toThrow('Service Error: Failed to sign token');
-
-        // Ensure logger.error is called
         expect(logger.error).toHaveBeenCalledWith(
           'Failed to sign token:',
           expect.any(Error),
@@ -88,12 +95,15 @@ describe('Token Service', () => {
   describe('insertToken', () => {
     describe('when inserting a token into Redis successfully', () => {
       it('should insert the token and return successfully', async () => {
+        // Arrange
         const redisSetSpy = jest
           .spyOn(redisClient, 'set')
           .mockResolvedValue('OK');
 
+        // Act
         await insertToken(userId, tokenType, tokenId, expiresIn);
 
+        // Assert
         expect(redisSetSpy).toHaveBeenCalledWith(
           `${tokenType}-user-${userId}`,
           tokenId,
@@ -105,14 +115,15 @@ describe('Token Service', () => {
 
     describe('when Redis set operation fails', () => {
       it('should throw an error and not insert the token', async () => {
+        // Arrange
         const redisSetSpy = jest
           .spyOn(redisClient, 'set')
           .mockRejectedValue(new Error('Redis Error'));
 
+        // Act & Assert
         await expect(
           insertToken(userId, tokenType, tokenId, expiresIn),
         ).rejects.toThrow('Redis Error');
-
         expect(redisSetSpy).toHaveBeenCalledWith(
           `${tokenType}-user-${userId}`,
           tokenId,

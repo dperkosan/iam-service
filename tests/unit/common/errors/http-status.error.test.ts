@@ -8,171 +8,162 @@ import {
   MissingEnvError,
 } from '@common/errors/http-status.error';
 
+function isAppError(error: unknown): error is AppError {
+  return error instanceof AppError;
+}
+
 describe('Error Classes', () => {
-  describe('AppError', () => {
-    describe('when initializing AppError', () => {
-      it('should set message, statusCode, and isOperational', () => {
-        const error = new AppError('Test error', 500, false);
+  describe('when working with AppError', () => {
+    it('should set message, statusCode, and isOperational correctly', () => {
+      const error = new AppError('Test error', 500, false);
+      expect(error.message).toBe('Test error');
+      expect(error.statusCode).toBe(500);
+      expect(error.isOperational).toBe(false);
+      expect(error).toBeInstanceOf(AppError);
+    });
 
-        expect(error.message).toBe('Test error');
-        expect(error.statusCode).toBe(500);
-        expect(error.isOperational).toBe(false);
-        expect(error).toBeInstanceOf(AppError);
-      });
+    it('should default isOperational to true if not provided', () => {
+      const error = new AppError('Test error', 500);
+      expect(error.isOperational).toBe(true);
+    });
 
-      it('should set isOperational to true by default', () => {
-        const error = new AppError('Test error', 500);
+    it('should capture the stack trace', () => {
+      const error = new AppError('Test error', 500);
+      expect(error.stack).toContain('AppError');
+    });
 
-        expect(error.isOperational).toBe(true);
-      });
+    it('should throw and be caught as an AppError', () => {
+      try {
+        throw new AppError('Test error', 500);
+      } catch (caughtError) {
+        if (isAppError(caughtError)) {
+          expect(caughtError.message).toBe('Test error');
+          expect(caughtError.statusCode).toBe(500);
+        } else {
+          throw new Error('Unexpected error type');
+        }
+      }
     });
   });
 
-  describe('BadRequestError', () => {
-    describe('when using default settings', () => {
-      it('should have a default message and status code 400', () => {
-        const error = new BadRequestError();
+  const errorClasses = [
+    {
+      name: 'BadRequestError',
+      class: BadRequestError,
+      defaultMessage: 'Bad Request',
+      defaultCode: 400,
+    },
+    {
+      name: 'NotFoundError',
+      class: NotFoundError,
+      defaultMessage: 'Not Found',
+      defaultCode: 404,
+    },
+    {
+      name: 'UnauthorizedError',
+      class: UnauthorizedError,
+      defaultMessage: 'Unauthorized',
+      defaultCode: 401,
+    },
+    {
+      name: 'ForbiddenError',
+      class: ForbiddenError,
+      defaultMessage: 'Forbidden',
+      defaultCode: 403,
+    },
+  ];
 
-        expect(error.message).toBe('Bad Request');
-        expect(error.statusCode).toBe(400);
-        expect(error.isOperational).toBe(true);
-        expect(error).toBeInstanceOf(BadRequestError);
-        expect(error).toBeInstanceOf(AppError);
+  errorClasses.forEach(
+    ({ name, class: ErrorClass, defaultMessage, defaultCode }) => {
+      describe(`when working with ${name}`, () => {
+        it(`should have a default message "${defaultMessage}" and status code ${defaultCode}`, () => {
+          const error = new ErrorClass();
+          expect(error.message).toBe(defaultMessage);
+          expect(error.statusCode).toBe(defaultCode);
+          expect(error.isOperational).toBe(true);
+          expect(error).toBeInstanceOf(ErrorClass);
+          expect(error).toBeInstanceOf(AppError);
+        });
+
+        it('should allow a custom message', () => {
+          const error = new ErrorClass('Custom message');
+          expect(error.message).toBe('Custom message');
+        });
+
+        it(`should throw and be caught as a ${name}`, () => {
+          try {
+            throw new ErrorClass();
+          } catch (caughtError) {
+            if (isAppError(caughtError)) {
+              expect(caughtError).toBeInstanceOf(ErrorClass);
+              expect(caughtError.message).toBe(defaultMessage);
+            } else {
+              throw new Error('Unexpected error type');
+            }
+          }
+        });
       });
+    },
+  );
+
+  describe('when working with ValidationError', () => {
+    it('should concatenate errors into the message and have status code 400', () => {
+      const errors = ['Field A is required', 'Field B must be a number'];
+      const error = new ValidationError(errors);
+      expect(error.message).toBe(
+        'Validation Error: Field A is required, Field B must be a number',
+      );
+      expect(error.statusCode).toBe(400);
+      expect(error.isOperational).toBe(true);
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error).toBeInstanceOf(AppError);
     });
 
-    describe('when providing a custom message', () => {
-      it('should allow a custom message', () => {
-        const error = new BadRequestError('Custom message');
-
-        expect(error.message).toBe('Custom message');
-      });
-    });
-  });
-
-  describe('NotFoundError', () => {
-    describe('when using default settings', () => {
-      it('should have a default message and status code 404', () => {
-        const error = new NotFoundError();
-
-        expect(error.message).toBe('Not Found');
-        expect(error.statusCode).toBe(404);
-        expect(error.isOperational).toBe(true);
-        expect(error).toBeInstanceOf(NotFoundError);
-        expect(error).toBeInstanceOf(AppError);
-      });
-    });
-
-    describe('when providing a custom message', () => {
-      it('should allow a custom message', () => {
-        const error = new NotFoundError('Custom message');
-
-        expect(error.message).toBe('Custom message');
-      });
-    });
-  });
-
-  describe('UnauthorizedError', () => {
-    describe('when using default settings', () => {
-      it('should have a default message and status code 401', () => {
-        const error = new UnauthorizedError();
-
-        expect(error.message).toBe('Unauthorized');
-        expect(error.statusCode).toBe(401);
-        expect(error.isOperational).toBe(true);
-        expect(error).toBeInstanceOf(UnauthorizedError);
-        expect(error).toBeInstanceOf(AppError);
-      });
-    });
-
-    describe('when providing a custom message', () => {
-      it('should allow a custom message', () => {
-        const error = new UnauthorizedError('Custom message');
-
-        expect(error.message).toBe('Custom message');
-      });
-    });
-  });
-
-  describe('ForbiddenError', () => {
-    describe('when using default settings', () => {
-      it('should have a default message and status code 403', () => {
-        const error = new ForbiddenError();
-
-        expect(error.message).toBe('Forbidden');
-        expect(error.statusCode).toBe(403);
-        expect(error.isOperational).toBe(true);
-        expect(error).toBeInstanceOf(ForbiddenError);
-        expect(error).toBeInstanceOf(AppError);
-      });
-    });
-
-    describe('when providing a custom message', () => {
-      it('should allow a custom message', () => {
-        const error = new ForbiddenError('Custom message');
-
-        expect(error.message).toBe('Custom message');
-      });
+    it('should handle an empty error array gracefully', () => {
+      const errors: string[] = [];
+      const error = new ValidationError(errors);
+      expect(error.message).toBe('Validation Error: ');
+      expect(error.statusCode).toBe(400);
+      expect(error.isOperational).toBe(true);
     });
   });
 
-  describe('ValidationError', () => {
-    describe('when initialized with multiple errors', () => {
-      it('should concatenate errors into the message and have status code 400', () => {
-        const errors = ['Field A is required', 'Field B must be a number'];
-        const error = new ValidationError(errors);
-
-        expect(error.message).toBe(
-          'Validation Error: Field A is required, Field B must be a number',
-        );
-        expect(error.statusCode).toBe(400);
-        expect(error.isOperational).toBe(true);
-        expect(error).toBeInstanceOf(ValidationError);
-        expect(error).toBeInstanceOf(AppError);
-      });
+  describe('when working with MissingEnvError', () => {
+    it('should include the variable name in the message and have status code 500', () => {
+      const variableName = 'API_KEY';
+      const error = new MissingEnvError(variableName);
+      expect(error.message).toBe(
+        `Environment variable "${variableName}" is missing or undefined`,
+      );
+      expect(error.statusCode).toBe(500);
+      expect(error.isOperational).toBe(true);
+      expect(error).toBeInstanceOf(MissingEnvError);
+      expect(error).toBeInstanceOf(AppError);
     });
 
-    describe('when initialized with an empty error array', () => {
-      it('should handle an empty error array gracefully', () => {
-        const errors: string[] = [];
-        const error = new ValidationError(errors);
-
-        expect(error.message).toBe('Validation Error: ');
-        expect(error.statusCode).toBe(400);
-        expect(error.isOperational).toBe(true);
-      });
-    });
-  });
-
-  describe('MissingEnvError', () => {
-    describe('when the variable name is provided', () => {
-      it('should include the variable name in the message and have status code 500', () => {
-        const variableName = 'API_KEY';
-        const error = new MissingEnvError(variableName);
-
-        expect(error.message).toBe(
-          `Environment variable "${variableName}" is missing or undefined`,
-        );
-        expect(error.statusCode).toBe(500);
-        expect(error.isOperational).toBe(true);
-        expect(error).toBeInstanceOf(MissingEnvError);
-        expect(error).toBeInstanceOf(AppError);
-      });
+    it('should handle an empty variable name gracefully', () => {
+      const variableName = '';
+      const error = new MissingEnvError(variableName);
+      expect(error.message).toBe(
+        'Environment variable "" is missing or undefined',
+      );
+      expect(error.statusCode).toBe(500);
+      expect(error.isOperational).toBe(true);
     });
 
-    describe('when the variable name is empty', () => {
-      it('should handle an empty variable name gracefully', () => {
-        const variableName = '';
-        const error = new MissingEnvError(variableName);
-
-        expect(error.message).toBe(
-          'Environment variable "" is missing or undefined',
-        );
-        expect(error.statusCode).toBe(500);
-        expect(error.isOperational).toBe(true);
-        expect(error).toBeInstanceOf(MissingEnvError);
-        expect(error).toBeInstanceOf(AppError);
-      });
+    it('should throw and be caught as a MissingEnvError', () => {
+      try {
+        throw new MissingEnvError('API_KEY');
+      } catch (caughtError) {
+        if (isAppError(caughtError)) {
+          expect(caughtError).toBeInstanceOf(MissingEnvError);
+          expect(caughtError.message).toBe(
+            'Environment variable "API_KEY" is missing or undefined',
+          );
+        } else {
+          throw new Error('Unexpected error type');
+        }
+      }
     });
   });
 });

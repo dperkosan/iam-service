@@ -1,6 +1,7 @@
 import { AppError } from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
 import { sendEmail } from '@common/utils/email.util';
+import getEnvVariable from '@common/utils/env.util';
 import { User } from '@modules/iam/entities/user.entity';
 
 export const sendEmailVerification = async (
@@ -10,7 +11,7 @@ export const sendEmailVerification = async (
   try {
     const verificationLink = new URL(
       'auth/verify-email',
-      process.env.FRONTEND_URL,
+      getEnvVariable('FRONTEND_URL'),
     );
     verificationLink.search = new URLSearchParams({ token }).toString();
 

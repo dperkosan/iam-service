@@ -3,6 +3,8 @@ import { MissingEnvError } from '@common/errors/http-status.error';
 const requiredEnvVariables: Record<string, string[]> = {
   common: [
     'NODE_ENV',
+    'FRONTEND_URL',
+    'REDIS_URL',
     'REDIS_PORT',
     'JWT_SECRET',
     'JWT_TOKEN_AUDIENCE',
@@ -31,7 +33,8 @@ const getEnvVariable = (key: string): string => {
     requiredEnvVariables.common.includes(key) ||
     requiredEnvVariables[currentEnv]?.includes(key);
 
-  if (isRequired && !value) {
+  // Throw an error only if the variable is required and truly undefined or null
+  if (isRequired && (value === undefined || value === null)) {
     throw new MissingEnvError(key);
   }
 

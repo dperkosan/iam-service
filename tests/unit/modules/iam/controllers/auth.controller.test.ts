@@ -31,8 +31,9 @@ describe('Auth Controller - Register', () => {
   const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
 
   beforeEach(() => {
-    statusMock = jest.fn().mockReturnThis(); // Allows chaining
+    statusMock = jest.fn().mockReturnThis(); // Enables chaining
     jsonMock = jest.fn();
+
     const registerDto: RegisterDto = {
       firstName: 'John',
       lastName: 'Doe',
@@ -41,13 +42,9 @@ describe('Auth Controller - Register', () => {
       role: Role.ADMIN,
       organizationId: 'org-1234',
     };
-    req = {
-      body: registerDto,
-    };
-    res = {
-      status: statusMock,
-      json: jsonMock,
-    };
+
+    req = { body: registerDto };
+    res = { status: statusMock, json: jsonMock };
 
     // Reset Redis mock
     mockRedisClient.get.mockReset();
@@ -62,14 +59,7 @@ describe('Auth Controller - Register', () => {
   describe('when registration is successful', () => {
     it('should respond with 201 and the result from authService.register', async () => {
       // Arrange
-      const mockResult: RegisterDto = {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'test@example.com',
-        password: 'password123',
-        role: Role.ADMIN,
-        organizationId: 'org-1234',
-      };
+      const mockResult: RegisterDto = req.body as RegisterDto;
       (authService.register as jest.Mock).mockResolvedValue(mockResult);
 
       // Act
@@ -79,7 +69,6 @@ describe('Auth Controller - Register', () => {
       expect(authService.register).toHaveBeenCalledWith(req.body);
       expect(statusMock).toHaveBeenCalledWith(201);
       expect(jsonMock).toHaveBeenCalledWith(mockResult);
-      expect(mockRedisClient.quit).not.toHaveBeenCalled(); // Redis quit should not be called by the controller
     });
   });
 
@@ -94,14 +83,11 @@ describe('Auth Controller - Register', () => {
         organizationId: 'org-1234',
       } as RegisterDto;
 
-      try {
-        // Act
-        await register(req as Request, res as Response);
-      } catch {
-        // Assert
-        expect(authService.register).toHaveBeenCalledWith(req.body);
-        expect(statusMock).not.toHaveBeenCalled(); // Controller passes errors to `handleRouteErrors`
-      }
+      // Act & Assert
+      await expect(register(req as Request, res as Response)).rejects.toThrow(
+        'Validation Error',
+      );
+      expect(authService.register).toHaveBeenCalledWith(req.body);
     });
   });
 
@@ -114,46 +100,41 @@ describe('Auth Controller - Register', () => {
       );
       (authService.register as jest.Mock).mockRejectedValue(mockError);
 
-      const registerDto: RegisterDto = {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'test@example.com',
-        password: 'password123',
-        role: Role.ADMIN,
-        organizationId: 'org-1234',
-      };
-
-      req.body = registerDto;
-
-      try {
-        // Act
-        await register(req as Request, res as Response);
-      } catch {
-        // Assert
-        expect(authService.register).toHaveBeenCalledWith(req.body);
-        expect(statusMock).not.toHaveBeenCalled(); // Errors should propagate
-      }
+      // Act & Assert
+      await expect(register(req as Request, res as Response)).rejects.toThrow(
+        'Service Error: Failed to register user',
+      );
+      expect(authService.register).toHaveBeenCalledWith(req.body);
     });
   });
 
-  describe('when the Redis connection needs to be closed', () => {
+  describe('when Redis connection needs to be closed', () => {
     it('should not close the Redis connection for singleton usage', async () => {
       // Arrange
-      const mockResult: RegisterDto = {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'test@example.com',
-        password: 'password123',
-        role: Role.ADMIN,
-        organizationId: 'org-1234',
-      };
+      const mockResult: RegisterDto = req.body as RegisterDto;
       (authService.register as jest.Mock).mockResolvedValue(mockResult);
 
       // Act
       await register(req as Request, res as Response);
 
       // Assert
-      expect(mockRedisClient.quit).not.toHaveBeenCalled(); // Singleton Redis is not closed in the controller
+      expect(mockRedisClient.quit).not.toHaveBeenCalled(); // Singleton Redis should not be closed
+    });
+  });
+
+  describe('when req.body is missing required fields', () => {
+    it('should propagate validation errors for missing fields', async () => {
+      // Arrange
+      req.body = {}; // Missing fields
+
+      const mockError = new AppError('Validation Error', 400);
+      (authService.register as jest.Mock).mockRejectedValue(mockError);
+
+      // Act & Assert
+      await expect(register(req as Request, res as Response)).rejects.toThrow(
+        'Validation Error',
+      );
+      expect(authService.register).toHaveBeenCalledWith(req.body);
     });
   });
 });

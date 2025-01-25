@@ -121,7 +121,7 @@ describe('Auth Service - register', () => {
   });
 
   describe('when email and organization already exist', () => {
-    it('should throw validation/conflict error and log a warning', async () => {
+    it('should throw a validation error and log a warning', async () => {
       // Arrange
       const validationError = new AppError(
         'Validation Error: Email and organizationId combination already exists',
@@ -141,7 +141,7 @@ describe('Auth Service - register', () => {
   });
 
   describe('when a generic service error occurs', () => {
-    it('should throw a generic service error and log a warning', async () => {
+    it('should throw a service error and log a warning', async () => {
       // Arrange
       const genericAppError = new AppError('Some other service error', 500);
       (dataSource.transaction as jest.Mock).mockRejectedValue(genericAppError);
@@ -158,7 +158,7 @@ describe('Auth Service - register', () => {
   });
 
   describe('when an unexpected error occurs', () => {
-    it('should throw a service error and log the unexpected error', async () => {
+    it('should throw a generic service error and log the unexpected error', async () => {
       // Arrange
       const unexpectedError = new Error('Unexpected Error');
       (dataSource.transaction as jest.Mock).mockRejectedValue(unexpectedError);
@@ -177,7 +177,6 @@ describe('Auth Service - register', () => {
   describe('when token generation fails', () => {
     it('should throw a service error and log the token generation error', async () => {
       // Arrange
-      const tokenError = new Error('Token generation failed');
       (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
       (dataSource.transaction as jest.Mock).mockImplementation(
         async (callback) =>
@@ -188,7 +187,9 @@ describe('Auth Service - register', () => {
       (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
         mockCreatedUser,
       );
-      (tokenService.signToken as jest.Mock).mockRejectedValue(tokenError);
+      (tokenService.signToken as jest.Mock).mockRejectedValue(
+        new Error('Token generation failed'),
+      );
 
       // Act & Assert
       await expect(authService.register(mockRegisterDto)).rejects.toThrow(
@@ -196,7 +197,7 @@ describe('Auth Service - register', () => {
       );
       expect(logger.error).toHaveBeenCalledWith(
         'Unexpected Service Error:',
-        tokenError,
+        new Error('Token generation failed'),
       );
     });
   });

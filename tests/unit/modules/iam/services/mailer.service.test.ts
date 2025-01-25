@@ -2,6 +2,7 @@ import { sendEmail } from '@common/utils/email.util';
 import logger from '@common/log/app.log';
 import { AppError } from '@common/errors/http-status.error';
 import { sendEmailVerification } from '@modules/iam/services/mailer.service';
+import getEnvVariable from '@common/utils/env.util';
 
 jest.mock('@common/utils/email.util', () => ({
   sendEmail: jest.fn(),
@@ -11,23 +12,30 @@ jest.mock('@common/log/app.log', () => ({
   error: jest.fn(),
 }));
 
+jest.mock('@common/utils/env.util', () => jest.fn());
+
 describe('Email Service - sendEmailVerification', () => {
   const email = 'test@example.com';
   const token = 'mockToken';
   const frontendUrl = 'https://frontend.example.com';
 
   beforeAll(() => {
-    process.env.FRONTEND_URL = frontendUrl;
+    (getEnvVariable as jest.Mock).mockImplementation((key: string) => {
+      if (key === 'FRONTEND_URL') return frontendUrl;
+      return undefined;
+    });
   });
 
   afterAll(() => {
-    delete process.env.FRONTEND_URL;
+    jest.clearAllMocks();
   });
 
   describe('when email is sent successfully', () => {
     it('should send an email with the correct parameters', async () => {
+      // Act
       await sendEmailVerification(email, token);
 
+      // Assert
       const expectedVerificationLink = new URL(
         'auth/verify-email',
         frontendUrl,
@@ -53,20 +61,18 @@ describe('Email Service - sendEmailVerification', () => {
 
   describe('when email sending fails', () => {
     it('should log the error and throw an AppError', async () => {
+      // Arrange
       const mockError = new Error('SMTP Connection Error');
       (sendEmail as jest.Mock).mockRejectedValueOnce(mockError);
 
-      // Call sendEmailVerification once
+      // Act
       const promise = sendEmailVerification(email, token);
 
-      // Assert that it rejects with AppError
+      // Assert
       await expect(promise).rejects.toThrow(AppError);
-
-      // Assert that the error message matches
       await expect(promise).rejects.toThrow(
         'Failed to send email verification.',
       );
-
       expect(logger.error).toHaveBeenCalledWith(
         'Error sending email verification:',
         mockError,

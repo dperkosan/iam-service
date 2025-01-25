@@ -21,27 +21,31 @@ jest.mock('@common/errors/query-failed.error', () => ({
 }));
 
 describe('User Repository', () => {
+  const mockUserRepo = {
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockEntityManager = {
+    getRepository: jest.fn(),
+  } as unknown as EntityManager;
+
+  const mockUser: RegisterDto = {
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'test@example.com',
+    password: 'password123',
+    role: Role.ADMIN,
+    organizationId: 'org-1234',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('createUser', () => {
-    const mockUserRepo = {
-      create: jest.fn(),
-      save: jest.fn(),
-    };
-
-    const mockUser: RegisterDto = {
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'test@example.com',
-      password: 'password123',
-      role: Role.ADMIN,
-      organizationId: 'org-1234',
-    };
-
     beforeEach(() => {
       (dataSource.getRepository as jest.Mock).mockReturnValue(mockUserRepo);
-    });
-
-    afterEach(() => {
-      jest.clearAllMocks();
     });
 
     describe('when creating and saving a new user', () => {
@@ -104,30 +108,10 @@ describe('User Repository', () => {
   });
 
   describe('createUserInTransaction', () => {
-    const mockEntityManager = {
-      getRepository: jest.fn(),
-    } as unknown as EntityManager;
-
-    const mockUserRepo = {
-      create: jest.fn(),
-      save: jest.fn(),
-    };
-
-    const mockUser: RegisterDto = {
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'test@example.com',
-      password: 'password123',
-      role: Role.ADMIN,
-      organizationId: 'org-1234',
-    };
-
     beforeEach(() => {
-      mockEntityManager.getRepository = jest.fn().mockReturnValue(mockUserRepo);
-    });
-
-    afterEach(() => {
-      jest.clearAllMocks();
+      (mockEntityManager.getRepository as jest.Mock).mockReturnValue(
+        mockUserRepo,
+      );
     });
 
     describe('when creating and saving a user in a transaction', () => {
