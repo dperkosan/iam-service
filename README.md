@@ -8,6 +8,7 @@
 - [Database Seeding](#database-seeding)
 - [Adding a New Endpoint](#adding-a-new-endpoint)
 - [Working with Environment Variables](#working-with-environment-variables)
+- [Error Handling](#error-handling)
 
 ---
 
@@ -346,3 +347,144 @@ const requiredEnvVariables: Record<string, string[]> = {
   ],
 };
 ```
+
+## Error Handling
+
+This project implements a robust error-handling mechanism to ensure the application is reliable, secure, and user-friendly. Below are the key components of the error-handling system:
+
+---
+
+#### **1. Custom Error Classes**
+
+The `http-status.error.ts` file defines custom error classes to represent specific types of errors. These classes extend the base `AppError` class, which encapsulates common properties such as `statusCode` and `isOperational`.
+
+**Key Error Classes:**
+
+- `AppError`: The base class for all application errors.
+- `BadRequestError`: Represents HTTP 400 (Bad Request) errors.
+- `NotFoundError`: Represents HTTP 404 (Not Found) errors.
+- `UnauthorizedError`: Represents HTTP 401 (Unauthorized) errors.
+- `ForbiddenError`: Represents HTTP 403 (Forbidden) errors.
+- `ValidationError`: Represents validation errors, with an array of error messages.
+- `MissingEnvError`: Indicates missing or undefined environment variables.
+
+**Example:**
+
+```typescript
+throw new BadRequestError('Invalid input data');
+```
+
+---
+
+#### **2. Middleware for Global Error Handling**
+
+The `error.middleware.ts` file provides middleware to handle errors globally across the application.
+
+**Key Features:**
+
+- **Operational Errors:** Errors of type `AppError` are treated as expected errors. The error details are logged, and an appropriate response is sent to the client.
+- **Unhandled Errors:** Other errors are treated as unexpected issues, logged, and responded to with a generic error message.
+
+**Implementation:**
+
+```typescript
+export const errorHandler = (
+  err: AppError | Error,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+): void => {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      message: err.message,
+      status: 'error',
+      isOperational: err.isOperational,
+    });
+  } else {
+    res.status(500).json({ message: 'Internal Server Error', status: 'error' });
+  }
+};
+```
+
+---
+
+#### **3. Route-Specific Error Handling**
+
+To handle asynchronous errors in route handlers, a helper function `handleRouteErrors` wraps each route, ensuring any uncaught errors are passed to the error-handling middleware.
+
+**Example Usage:**
+
+```typescript
+router.post('/register', validation(RegisterDto), handleRouteErrors(register));
+```
+
+---
+
+#### **4. Service-Level Error Management**
+
+Service functions are designed to handle operational errors explicitly. When an error occurs:
+
+- It is logged with detailed information for debugging.
+- Known errors (e.g., validation issues) are re-thrown as `AppError` instances.
+- Unexpected errors are caught and re-thrown as generic `AppError` instances.
+
+**Example:**
+
+```typescript
+try {
+  const result = await dataSource.transaction(async (transactionManager) => {
+    // Logic
+  });
+  return result;
+} catch (error) {
+  throw new AppError('Service Error: Failed to register user', 500);
+}
+```
+
+---
+
+#### **5. Repository Error Handling**
+
+Repository methods catch and handle database-specific errors. For instance:
+
+- `isQueryFailedErrorWithCode` detects query errors.
+- Duplicate entries are translated into `BadRequestError` with clear messaging.
+
+**Example:**
+
+```typescript
+if (isQueryFailedErrorWithCode(error) && error.code === '23505') {
+  throw new BadRequestError('Email already exists');
+}
+```
+
+---
+
+#### **6. Logging**
+
+All errors, whether operational or unexpected, are logged using the custom logging utility. Logs contain details such as the error message, stack trace, and type.
+
+---
+
+#### **7. Development vs. Production**
+
+- **Development Mode:** Includes stack traces in error responses for easier debugging.
+- **Production Mode:** Excludes sensitive details from error responses to enhance security.
+
+**Example:**
+
+```typescript
+...(getEnvVariable('NODE_ENV') === 'development' && { stack: err.stack })
+```
+
+---
+
+### Benefits of This Approach
+
+- **Centralized Handling:** A single middleware processes all errors.
+- **Consistency:** Custom error classes ensure uniform error structures.
+- **Scalability:** Easy to add new error types as needed.
+- **Security:** Detailed error information is exposed only in development mode.
+- **Reliability:** Prevents application crashes from unhandled errors.
+
+This structured approach ensures the application remains maintainable, secure, and user-friendly while simplifying debugging and issue resolution.
