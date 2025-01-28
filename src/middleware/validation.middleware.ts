@@ -21,6 +21,7 @@ export const validation = <T extends object>(
 
     const dtoInstance = plainToInstance(dto, req.body, {
       enableImplicitConversion: true,
+      excludeExtraneousValues: true,
     });
 
     const errors = await validate(dtoInstance);

@@ -44,5 +44,5 @@ export class User extends BaseUuid {
   organization!: Organization;
 
   @Column({ type: 'uuid' })
-  organizationId!: string;
+  organizationId!: Organization['id'];
 }

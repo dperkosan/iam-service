@@ -1,10 +1,11 @@
+import { faker } from '@faker-js/faker';
 import { genSalt, hash } from 'bcrypt';
 import { setSeederFactory } from 'typeorm-extension';
 
 import { Role } from '@modules/iam/enums/role.enum';
 import { User } from '@modules/iam/entities/user.entity';
 
-export default setSeederFactory(User, async (faker) => {
+export default setSeederFactory(User, async () => {
   const user = new User();
 
   user.firstName = faker.person.firstName();

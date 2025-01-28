@@ -47,3 +47,5 @@ process.on('SIGTERM', async () => {
   await gracefulShutdown();
   process.exit(0);
 });
+
+export default app;
