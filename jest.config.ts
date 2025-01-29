@@ -10,7 +10,6 @@ export default {
     prefix: '<rootDir>/',
   }),
   modulePaths: [compilerOptions.baseUrl],
-  collectCoverage: true, // Enable coverage collection
   coverageDirectory: 'coverage', // Directory to output coverage reports
   coverageReporters: ['text', 'lcov'], // Output format for coverage reports
   coverageThreshold: {
