@@ -1,12 +1,10 @@
-import express from 'express';
 import dataSource from '@database/config/typeorm.config';
-import { authRoutes } from '@modules/iam';
-import { errorHandler } from '@middleware/error.middleware';
 import logger from '@common/log/app.log';
 import { redisClient } from '@redis/redis.client';
 import { gracefulShutdown } from '@common/utils/shutdown.util';
+import { createApp } from 'src/createApp';
 
-const app = express();
+const app = createApp();
 
 (async () => {
   try {
@@ -17,15 +15,6 @@ const app = express();
     // Initialize database connection
     await dataSource.initialize();
     console.log('Database connection established.');
-
-    // Middleware
-    app.use(express.json());
-
-    // Routes
-    app.use('/auth', authRoutes);
-
-    // Error handling
-    app.use(errorHandler);
 
     // Start Express server
     app.listen(3000, () => {
@@ -47,5 +36,3 @@ process.on('SIGTERM', async () => {
   await gracefulShutdown();
   process.exit(0);
 });
-
-export default app;
