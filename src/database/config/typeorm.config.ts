@@ -37,7 +37,7 @@ const environmentOverrides: Record<
   },
   test: {
     ...baseConfig,
-    database: getEnvVariable('DB_NAME_TEST'),
+    database: getEnvVariable('DB_NAME'),
     synchronize: true,
   },
   production: {

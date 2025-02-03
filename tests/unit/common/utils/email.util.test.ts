@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import logger from '@common/log/app.log';
-import { sendEmail } from '@common/utils/email.util';
+import { sendEmail, createTransporter } from '@common/utils/email.util';
 import getEnvVariable from '@common/utils/env.util';
 
 jest.mock('nodemailer');
@@ -10,6 +10,7 @@ jest.mock('@common/utils/env.util');
 describe('sendEmail', () => {
   const mockTransporter = {
     sendMail: jest.fn(),
+    on: jest.fn(),
   };
 
   const env = {
@@ -22,9 +23,7 @@ describe('sendEmail', () => {
 
   beforeEach(() => {
     (getEnvVariable as jest.Mock).mockImplementation(
-      (key: keyof typeof env) => {
-        return env[key];
-      },
+      (key: keyof typeof env) => env[key],
     );
 
     (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
@@ -53,7 +52,9 @@ describe('sendEmail', () => {
         html,
       });
       expect(result).toEqual({ messageId: '12345' });
-      expect(logger.info).toHaveBeenCalledWith('Email sent: 12345');
+      expect(logger.info).toHaveBeenCalledWith(
+        `Email sent successfully to ${to} (Message ID: 12345)`,
+      );
     });
   });
 
@@ -68,7 +69,10 @@ describe('sendEmail', () => {
 
       // Act & Assert
       await expect(sendEmail(to, subject, html)).rejects.toThrow('SMTP error');
-      expect(logger.error).toHaveBeenCalledWith('Error sending email:', error);
+      expect(logger.error).toHaveBeenCalledWith(
+        `Failed to send email to ${to}:`,
+        error,
+      );
     });
   });
 
@@ -129,6 +133,42 @@ describe('sendEmail', () => {
       // Act & Assert
       await expect(sendEmail(to, subject, html)).rejects.toThrow(
         'Email content cannot be empty',
+      );
+    });
+  });
+
+  describe('when transporter events are triggered', () => {
+    it('should log an info message when transporter is idle', () => {
+      // Arrange
+      createTransporter();
+
+      // Act
+      const idleHandler = mockTransporter.on.mock.calls.find(
+        ([eventName]) => eventName === 'idle',
+      )?.[1];
+
+      idleHandler?.(); // Simulate the event
+
+      // Assert
+      expect(logger.info).toHaveBeenCalledWith('SMTP Transporter is idle.');
+    });
+
+    it('should log an error message when transporter encounters an error', () => {
+      // Arrange
+      createTransporter();
+      const error = new Error('SMTP connection failed');
+
+      // Act
+      const errorHandler = mockTransporter.on.mock.calls.find(
+        ([eventName]) => eventName === 'error',
+      )?.[1];
+
+      errorHandler?.(error); // Simulate the event
+
+      // Assert
+      expect(logger.error).toHaveBeenCalledWith(
+        'SMTP Transporter error:',
+        error,
       );
     });
   });

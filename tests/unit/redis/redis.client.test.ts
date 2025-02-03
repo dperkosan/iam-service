@@ -14,17 +14,25 @@ describe('Redis Client', () => {
   beforeEach(() => {
     // Mock environment variables
     (getEnvVariable as jest.Mock).mockImplementation(
-      (key: 'REDIS_URL' | 'REDIS_PORT') => {
+      (key: 'REDIS_URL' | 'REDIS_PORT' | 'REDIS_DB') => {
         const envVariables = {
           REDIS_URL: 'redis://localhost',
           REDIS_PORT: '6379',
+          REDIS_DB: '0',
         };
         return envVariables[key];
       },
     );
 
     // Mock Redis instance
-    redisMock = new Redis() as jest.Mocked<Redis>;
+    redisMock = {
+      on: jest.fn(),
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+    } as unknown as jest.Mocked<Redis>;
+
+    // Ensure Redis constructor is properly mocked
+    (Redis as unknown as jest.Mock).mockImplementation(() => redisMock);
   });
 
   afterEach(() => {
@@ -37,7 +45,7 @@ describe('Redis Client', () => {
       const client = createRedisClient();
 
       // Assert
-      expect(Redis).toHaveBeenCalledWith('redis://localhost:6379');
+      expect(Redis).toHaveBeenCalledWith('redis://localhost:6379/0');
       expect(client).toBeDefined();
     });
 
@@ -99,7 +107,7 @@ describe('Redis Client', () => {
 
         // Assert
         expect(logger.info).toHaveBeenCalledWith(
-          'Redis connected successfully.',
+          'Redis connected successfully to DB 0.',
         );
       });
     });
@@ -139,6 +147,19 @@ describe('Redis Client', () => {
       // Arrange
       (getEnvVariable as jest.Mock).mockImplementation((key) => {
         if (key === 'REDIS_PORT') {
+          throw new MissingEnvError(key);
+        }
+        return 'redis://localhost';
+      });
+
+      // Act & Assert
+      expect(() => createRedisClient()).toThrow();
+    });
+
+    it('should throw an error if REDIS_DB is missing', () => {
+      // Arrange
+      (getEnvVariable as jest.Mock).mockImplementation((key) => {
+        if (key === 'REDIS_DB') {
           throw new MissingEnvError(key);
         }
         return 'redis://localhost';

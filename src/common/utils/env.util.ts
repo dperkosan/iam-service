@@ -19,7 +19,7 @@ const requiredEnvVariables: Record<string, string[]> = {
     'SMTP_PASS',
     'SMTP_FROM',
   ], // Required in all environments
-  test: ['DB_HOST', 'DB_NAME_TEST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'], // Required only in test environment
+  test: ['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'], // Required only in test environment
   development: ['DB_HOST', 'DB_NAME', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'], // Required in dev
   production: ['DATABASE_URL'], // Required in prod
 };

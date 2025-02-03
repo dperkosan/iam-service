@@ -40,7 +40,10 @@ export const register = async (registerDto: RegisterDto) => {
 
       await sendEmailVerification(createdUser.email, emailVerificationToken);
 
-      return createdUser;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userWithoutPassword } = createdUser;
+
+      return userWithoutPassword;
     });
 
     return result;

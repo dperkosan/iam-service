@@ -4,7 +4,7 @@ import getEnvVariable from '@common/utils/env.util';
 
 const createRedisClient = (): Redis => {
   const client = new Redis(
-    `${getEnvVariable('REDIS_URL')}:${getEnvVariable('REDIS_PORT')}`,
+    `${getEnvVariable('REDIS_URL')}:${getEnvVariable('REDIS_PORT')}/${getEnvVariable('REDIS_DB')}`,
   );
 
   // Log errors
@@ -14,7 +14,9 @@ const createRedisClient = (): Redis => {
 
   // Log connection events
   client.on('connect', () => {
-    logger.info('Redis connected successfully.');
+    logger.info(
+      `Redis connected successfully to DB ${getEnvVariable('REDIS_DB')}.`,
+    );
   });
 
   // Log disconnect events
