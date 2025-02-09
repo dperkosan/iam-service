@@ -10,7 +10,12 @@ process.env.JWT_FORGOTTEN_PASSWORD_TOKEN_TTL = '2592000';
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import * as tokenService from '@modules/iam/services/token.service';
 import * as mailerService from '@modules/iam/services/mailer.service';
-import { AppError } from '@common/errors/http-status.error';
+import {
+  AppError,
+  BadRequestError,
+  TokenRevokedError,
+  UnauthorizedError,
+} from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
 import * as authService from '@modules/iam/services/auth.service';
 import { Role } from '@modules/iam/enums/role.enum';
@@ -20,9 +25,16 @@ import { randomUUID } from 'crypto';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import jwtConfig from '@common/config/jwt.config';
 import { createUserInTransaction } from '@modules/iam/repositories/user.repository.transaction';
+import { userRepository } from '@modules/iam/repositories/user.repository';
+import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
+import { EntityNotFoundError } from 'typeorm';
 
 // Mock dependencies
-jest.mock('@modules/iam/repositories/user.repository');
+jest.mock('@modules/iam/repositories/user.repository', () => ({
+  userRepository: {
+    findOneByOrFail: jest.fn(),
+  },
+}));
 jest.mock('@modules/iam/repositories/user.repository.transaction', () => ({
   createUserInTransaction: jest.fn(),
 }));
@@ -40,6 +52,8 @@ jest.mock('crypto', () => ({
 jest.mock('@modules/iam/services/token.service', () => ({
   signToken: jest.fn(),
   insertToken: jest.fn(),
+  verifyToken: jest.fn(),
+  validateToken: jest.fn(),
 }));
 jest.mock('@modules/iam/services/mailer.service', () => ({
   sendEmailVerification: jest.fn(),
@@ -200,5 +214,108 @@ describe('Auth Service - register', () => {
         new Error('Token generation failed'),
       );
     });
+  });
+});
+
+describe('Auth Service - resendVerifyAccountEmail', () => {
+  const mockResendDto: ResendEmailWithTokenDto = {
+    token: 'mock-token',
+  };
+  const mockUser = {
+    id: 1,
+    email: 'test@example.com',
+    emailVerified: false,
+  };
+  const mockNewTokenId = 'new-mock-token-id';
+  const mockNewEmailVerificationToken = 'new-mock-email-verification-token';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (randomUUID as jest.Mock).mockReturnValue(mockNewTokenId);
+  });
+
+  it('should resend email verification if the token is valid', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(mockUser);
+    (tokenService.validateToken as jest.Mock).mockResolvedValue(undefined);
+    (tokenService.signToken as jest.Mock).mockResolvedValue(
+      mockNewEmailVerificationToken,
+    );
+    (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
+    (mailerService.sendEmailVerification as jest.Mock).mockResolvedValue(
+      undefined,
+    );
+
+    const result = await authService.resendVerifyAccountEmail(mockResendDto);
+
+    expect(result).toEqual('Email resent successfully');
+  });
+
+  it('should throw an error if user not found', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockRejectedValue(
+      new EntityNotFoundError('User', { id: mockUser.id }),
+    );
+
+    await expect(
+      authService.resendVerifyAccountEmail(mockResendDto),
+    ).rejects.toThrow(new AppError('User not found', 404));
+  });
+
+  it('should throw an error if token is revoked', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new TokenRevokedError('Token revoked'),
+    );
+
+    await expect(
+      authService.resendVerifyAccountEmail(mockResendDto),
+    ).rejects.toThrow(TokenRevokedError);
+  });
+
+  it('should throw an error if token is unauthorized', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new UnauthorizedError('Unauthorized'),
+    );
+
+    await expect(
+      authService.resendVerifyAccountEmail(mockResendDto),
+    ).rejects.toThrow(UnauthorizedError);
+  });
+
+  it('should throw an error if email is already verified', async () => {
+    const verifiedUser = { ...mockUser, emailVerified: true };
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: verifiedUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(
+      verifiedUser,
+    );
+
+    await expect(
+      authService.resendVerifyAccountEmail(mockResendDto),
+    ).rejects.toThrow(new BadRequestError('Email is already verified.'));
+  });
+
+  it('should log an unexpected error and throw a service error', async () => {
+    const unexpectedError = new Error('Unexpected failure');
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(unexpectedError);
+
+    await expect(
+      authService.resendVerifyAccountEmail(mockResendDto),
+    ).rejects.toThrow(
+      new AppError('Service Error: Failed to resend email', 500),
+    );
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unexpected Service Error:',
+      unexpectedError,
+    );
   });
 });
