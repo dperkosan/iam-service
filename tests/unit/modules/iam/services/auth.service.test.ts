@@ -8,7 +8,6 @@ process.env.JWT_EMAIL_VERIFICATION_TOKEN_TTL = '2592000';
 process.env.JWT_FORGOTTEN_PASSWORD_TOKEN_TTL = '2592000';
 
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
-import * as userRepository from '@modules/iam/repositories/user.repository';
 import * as tokenService from '@modules/iam/services/token.service';
 import * as mailerService from '@modules/iam/services/mailer.service';
 import { AppError } from '@common/errors/http-status.error';
@@ -20,12 +19,20 @@ import dataSource from '@database/config/typeorm.config';
 import { randomUUID } from 'crypto';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import jwtConfig from '@common/config/jwt.config';
+import { createUserInTransaction } from '@modules/iam/repositories/user.repository.transaction';
 
 // Mock dependencies
 jest.mock('@modules/iam/repositories/user.repository');
+jest.mock('@modules/iam/repositories/user.repository.transaction', () => ({
+  createUserInTransaction: jest.fn(),
+}));
+
 jest.mock('@common/utils/hash.util');
 jest.mock('@database/config/typeorm.config', () => ({
   transaction: jest.fn(),
+  getRepository: jest.fn().mockReturnValue({
+    extend: jest.fn().mockReturnValue({}),
+  }),
 }));
 jest.mock('crypto', () => ({
   randomUUID: jest.fn(),
@@ -77,9 +84,7 @@ describe('Auth Service - register', () => {
             getRepository: jest.fn(),
           }),
       );
-      (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
-        mockCreatedUser,
-      );
+      (createUserInTransaction as jest.Mock).mockResolvedValue(mockCreatedUser);
       (tokenService.signToken as jest.Mock).mockResolvedValue(
         mockEmailVerificationToken,
       );
@@ -93,13 +98,10 @@ describe('Auth Service - register', () => {
 
       // Assert
       expect(hashData).toHaveBeenCalledWith(mockRegisterDto.password);
-      expect(userRepository.createUserInTransaction).toHaveBeenCalledWith(
-        expect.anything(),
-        {
-          ...mockRegisterDto,
-          password: mockHashedPassword,
-        },
-      );
+      expect(createUserInTransaction).toHaveBeenCalledWith(expect.anything(), {
+        ...mockRegisterDto,
+        password: mockHashedPassword,
+      });
       expect(tokenService.signToken).toHaveBeenCalledWith(
         mockCreatedUser.id,
         TokenType.EMAIL_VERIFICATION,
@@ -184,9 +186,7 @@ describe('Auth Service - register', () => {
             getRepository: jest.fn(),
           }),
       );
-      (userRepository.createUserInTransaction as jest.Mock).mockResolvedValue(
-        mockCreatedUser,
-      );
+      (createUserInTransaction as jest.Mock).mockResolvedValue(mockCreatedUser);
       (tokenService.signToken as jest.Mock).mockRejectedValue(
         new Error('Token generation failed'),
       );

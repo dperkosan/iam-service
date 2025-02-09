@@ -3,9 +3,14 @@ import jwtConfig from '@common/config/jwt.config';
 import { User } from '@modules/iam/entities/user.entity';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import { TokenPayload } from '@modules/iam/types/token-payload.type';
-import { AppError } from '@common/errors/http-status.error';
+import {
+  AppError,
+  TokenRevokedError,
+  UnauthorizedError,
+} from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
 import { redisClient } from '@redis/redis.client';
+import { DecodedToken } from '@modules/iam/types/auth.types';
 
 export const signToken = async (
   userId: User['id'],
@@ -40,6 +45,45 @@ export const signToken = async (
     logger.error('Failed to sign token:', error);
     throw new AppError('Service Error: Failed to sign token', 500);
   }
+};
+
+export const verifyToken = async (token: string): Promise<DecodedToken> => {
+  try {
+    return await new Promise((resolve, reject) => {
+      jwt.verify(
+        token,
+        jwtConfig.secret,
+        {
+          audience: jwtConfig.audience,
+          issuer: jwtConfig.issuer,
+        },
+        (err, decoded) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(decoded as DecodedToken);
+          }
+        },
+      );
+    });
+  } catch (error) {
+    logger.error('Failed to verify token:', error);
+    throw new UnauthorizedError('Unauthorized: Invalid or expired token');
+  }
+};
+
+export const validateToken = async (
+  userId: User['id'],
+  tokenType: TokenType,
+  tokenId: string,
+): Promise<boolean> => {
+  const storedId = await redisClient.get(getKey(userId, tokenType));
+
+  if (!storedId || storedId !== tokenId) {
+    throw new TokenRevokedError();
+  }
+
+  return true;
 };
 
 export const insertToken = async (

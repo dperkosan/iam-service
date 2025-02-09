@@ -55,3 +55,9 @@ export class MissingEnvError extends AppError {
     );
   }
 }
+
+export class TokenRevokedError extends UnauthorizedError {
+  constructor(message: string = 'Token has been revoked or is invalid') {
+    super(message);
+  }
+}
