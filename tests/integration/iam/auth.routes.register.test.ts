@@ -14,7 +14,7 @@ import { compare } from 'bcrypt';
 
 const app = createApp();
 
-describe('Auth Integration Tests with Redis', () => {
+describe('Register Integration Test', () => {
   let organization: Organization;
   let sendMailMock: jest.Mock;
 
