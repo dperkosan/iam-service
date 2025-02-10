@@ -7,21 +7,32 @@ process.env.JWT_REFRESH_TOKEN_TTL = '86400';
 process.env.JWT_EMAIL_VERIFICATION_TOKEN_TTL = '2592000';
 process.env.JWT_FORGOTTEN_PASSWORD_TOKEN_TTL = '2592000';
 
-import jwt from 'jsonwebtoken';
+import jwt, { JsonWebTokenError } from 'jsonwebtoken';
 import logger from '@common/log/app.log';
-import { signToken, insertToken } from '@modules/iam/services/token.service';
+import {
+  signToken,
+  insertToken,
+  verifyToken,
+  validateToken,
+} from '@modules/iam/services/token.service';
 import jwtConfig from '@common/config/jwt.config';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import { redisClient } from '@redis/redis.client';
-import { AppError } from '@common/errors/http-status.error';
+import {
+  AppError,
+  TokenRevokedError,
+  UnauthorizedError,
+} from '@common/errors/http-status.error';
 import { Role } from '@modules/iam/enums/role.enum';
 
 jest.mock('jsonwebtoken');
-jest.mock('@redis/redis.client', () => ({
-  redisClient: {
+jest.mock('@redis/redis.client', () => {
+  const redisMock = {
     set: jest.fn(),
-  },
-}));
+    get: jest.fn(),
+  };
+  return { redisClient: redisMock };
+});
 jest.mock('@common/log/app.log', () => ({
   error: jest.fn(),
   warn: jest.fn(),
@@ -131,6 +142,54 @@ describe('Token Service', () => {
           expiresIn,
         );
       });
+    });
+  });
+
+  describe('verifyToken', () => {
+    it('should return the decoded token when valid', async () => {
+      jest.spyOn(jwt, 'verify').mockImplementation((_, __, ___, callback) => {
+        if (callback) {
+          callback(null, { sub: userId, tokenType });
+        }
+      });
+
+      const result = await verifyToken(token);
+      expect(result).toEqual({ sub: userId, tokenType });
+    });
+
+    it('should throw an UnauthorizedError when invalid', async () => {
+      jest.spyOn(jwt, 'verify').mockImplementation((_, __, ___, callback) => {
+        if (callback) {
+          callback(new JsonWebTokenError('JWT Verification Error'), undefined);
+        }
+      });
+
+      await expect(verifyToken(token)).rejects.toThrow(UnauthorizedError);
+    });
+  });
+
+  describe('validateToken', () => {
+    it('should return true when token is valid', async () => {
+      jest.spyOn(redisClient, 'get').mockResolvedValue(tokenId);
+
+      const result = await validateToken(userId, tokenType, tokenId);
+      expect(result).toBe(true);
+    });
+
+    it('should throw a TokenRevokedError if token is not in Redis', async () => {
+      jest.spyOn(redisClient, 'get').mockResolvedValue(null);
+
+      await expect(validateToken(userId, tokenType, tokenId)).rejects.toThrow(
+        TokenRevokedError,
+      );
+    });
+
+    it('should throw a TokenRevokedError if token does not match', async () => {
+      jest.spyOn(redisClient, 'get').mockResolvedValue('differentTokenId');
+
+      await expect(validateToken(userId, tokenType, tokenId)).rejects.toThrow(
+        TokenRevokedError,
+      );
     });
   });
 });
