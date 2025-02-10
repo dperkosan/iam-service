@@ -3,6 +3,7 @@ import { compilerOptions } from './tsconfig.json';
 
 export default {
   testEnvironment: 'node',
+  setupFiles: ['dotenv/config'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {}],
   },

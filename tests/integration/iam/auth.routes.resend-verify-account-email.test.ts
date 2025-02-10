@@ -40,6 +40,9 @@ describe('Resend Verify Account Email Integration Test', () => {
   });
 
   afterAll(async () => {
+    await clearDB(dataSource);
+    await redisClient.flushall();
+
     await dataSource.destroy();
     await redisClient.quit();
   });
