@@ -22,6 +22,7 @@ import { sendEmailVerification } from '@modules/iam/services/mailer.service';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
 import { EntityNotFoundError } from 'typeorm';
 import { createUserInTransaction } from '@modules/iam/repositories/user.repository.transaction';
+import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 
 export const register = async (registerDto: RegisterDto) => {
   try {
@@ -110,7 +111,7 @@ export const resendVerifyAccountEmail = async (
     // resend email
     await sendEmailVerification(user.email, newEmailVerificationToken);
 
-    return 'Email resent successfully';
+    return 'Email sent successfully';
   } catch (error) {
     if (error instanceof EntityNotFoundError) {
       throw new AppError('User not found', 404);
@@ -126,6 +127,52 @@ export const resendVerifyAccountEmail = async (
       throw error;
     }
 
+    if (error instanceof AppError) {
+      logger.warn('Service Error:', error.message);
+      throw error;
+    }
+
+    logger.error('Unexpected Service Error:', error);
+    throw new AppError('Service Error: Failed to resend email', 500);
+  }
+};
+
+export const sendVerifyAccountEmail = async (sendEmailDto: SendEmailDto) => {
+  const user = await userRepository.findOneBy({
+    email: sendEmailDto.email,
+    organizationId: sendEmailDto.organizationId,
+  });
+
+  // Prevent user enumeration by returning success even if the user doesn't exist
+  if (!user) return {};
+
+  try {
+    if (user.emailVerified) {
+      throw new BadRequestError('Email is already verified.');
+    }
+
+    // create new token
+    const newTokenId = randomUUID();
+    const newEmailVerificationToken = await signToken(
+      user.id,
+      TokenType.EMAIL_VERIFICATION,
+      jwtConfig.emailVerificationTokenTtl,
+      { tokenId: newTokenId },
+    );
+
+    // save new token in redis in place of old one
+    await insertToken(
+      user.id,
+      TokenType.EMAIL_VERIFICATION,
+      newTokenId,
+      jwtConfig.emailVerificationTokenTtl,
+    );
+
+    // resend email
+    await sendEmailVerification(user.email, newEmailVerificationToken);
+
+    return 'Email sent successfully';
+  } catch (error) {
     if (error instanceof AppError) {
       logger.warn('Service Error:', error.message);
       throw error;

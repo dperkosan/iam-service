@@ -251,7 +251,7 @@ describe('Auth Service - resendVerifyAccountEmail', () => {
 
     const result = await authService.resendVerifyAccountEmail(mockResendDto);
 
-    expect(result).toEqual('Email resent successfully');
+    expect(result).toEqual('Email sent successfully');
   });
 
   it('should throw an error if user not found', async () => {

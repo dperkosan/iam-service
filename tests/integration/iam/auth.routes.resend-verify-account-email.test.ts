@@ -86,7 +86,7 @@ describe('Resend Verify Account Email Integration Test', () => {
       .send({ token: validToken })
       .expect(200);
 
-    expect(response.body).toBe('Email resent successfully');
+    expect(response.body).toBe('Email sent successfully');
 
     const redisKeys = await redisClient.keys('*');
     expect(redisKeys.length).toBe(1);

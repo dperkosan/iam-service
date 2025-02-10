@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import * as authService from '@modules/iam/services/auth.service';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
+import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const registerDto: RegisterDto = req.body;
@@ -21,6 +22,20 @@ export const resendVerifyAccountEmail = async (
   const result = await authService.resendVerifyAccountEmail(
     resendEmailWithTokenDto,
   );
+
+  res.status(200).json(result);
+};
+
+/**
+ * The user is providing their email address and organization ID
+ * to the API to request an email be sent
+ */
+export const sendVerifyAccountEmail = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const sendEmailDto: SendEmailDto = req.body;
+  const result = await authService.sendVerifyAccountEmail(sendEmailDto);
 
   res.status(200).json(result);
 };

@@ -174,7 +174,7 @@ describe('Auth Controller - Resend Verify Account Email', () => {
   describe('when resending verification email is successful', () => {
     it('should respond with 200 and the result from authService.resendVerifyAccountEmail', async () => {
       // Arrange
-      const mockResult = { message: 'Verification email resent successfully' };
+      const mockResult = { message: 'Verification email sent successfully' };
       (authService.resendVerifyAccountEmail as jest.Mock).mockResolvedValue(
         mockResult,
       );
@@ -235,7 +235,7 @@ describe('Auth Controller - Resend Verify Account Email', () => {
   describe('when Redis connection needs to be closed', () => {
     it('should not close the Redis connection for singleton usage', async () => {
       // Arrange
-      const mockResult = { message: 'Verification email resent successfully' };
+      const mockResult = { message: 'Verification email sent successfully' };
       (authService.resendVerifyAccountEmail as jest.Mock).mockResolvedValue(
         mockResult,
       );
