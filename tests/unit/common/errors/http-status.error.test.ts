@@ -6,6 +6,7 @@ import {
   ForbiddenError,
   ValidationError,
   MissingEnvError,
+  TokenRevokedError,
 } from '@common/errors/http-status.error';
 
 function isAppError(error: unknown): error is AppError {
@@ -159,6 +160,38 @@ describe('Error Classes', () => {
           expect(caughtError).toBeInstanceOf(MissingEnvError);
           expect(caughtError.message).toBe(
             'Environment variable "API_KEY" is missing or undefined',
+          );
+        } else {
+          throw new Error('Unexpected error type');
+        }
+      }
+    });
+  });
+
+  describe('when working with TokenRevokedError', () => {
+    it('should have a default message "Token has been revoked or is invalid" and status code 401', () => {
+      const error = new TokenRevokedError();
+      expect(error.message).toBe('Token has been revoked or is invalid');
+      expect(error.statusCode).toBe(401);
+      expect(error.isOperational).toBe(true);
+      expect(error).toBeInstanceOf(TokenRevokedError);
+      expect(error).toBeInstanceOf(UnauthorizedError);
+      expect(error).toBeInstanceOf(AppError);
+    });
+
+    it('should allow a custom message', () => {
+      const error = new TokenRevokedError('Custom token error message');
+      expect(error.message).toBe('Custom token error message');
+    });
+
+    it('should throw and be caught as a TokenRevokedError', () => {
+      try {
+        throw new TokenRevokedError();
+      } catch (caughtError) {
+        if (isAppError(caughtError)) {
+          expect(caughtError).toBeInstanceOf(TokenRevokedError);
+          expect(caughtError.message).toBe(
+            'Token has been revoked or is invalid',
           );
         } else {
           throw new Error('Unexpected error type');
