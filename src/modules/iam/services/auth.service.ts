@@ -133,20 +133,20 @@ export const resendVerifyAccountEmail = async (
     }
 
     logger.error('Unexpected Service Error:', error);
-    throw new AppError('Service Error: Failed to resend email', 500);
+    throw new AppError('Service Error: Failed to send email', 500);
   }
 };
 
 export const sendVerifyAccountEmail = async (sendEmailDto: SendEmailDto) => {
-  const user = await userRepository.findOneBy({
-    email: sendEmailDto.email,
-    organizationId: sendEmailDto.organizationId,
-  });
-
-  // Prevent user enumeration by returning success even if the user doesn't exist
-  if (!user) return {};
-
   try {
+    const user = await userRepository.findOneBy({
+      email: sendEmailDto.email,
+      organizationId: sendEmailDto.organizationId,
+    });
+
+    // Prevent user enumeration by returning success even if the user doesn't exist
+    if (!user) return {};
+
     if (user.emailVerified) {
       throw new BadRequestError('Email is already verified.');
     }
@@ -168,7 +168,7 @@ export const sendVerifyAccountEmail = async (sendEmailDto: SendEmailDto) => {
       jwtConfig.emailVerificationTokenTtl,
     );
 
-    // resend email
+    // send email
     await sendEmailVerification(user.email, newEmailVerificationToken);
 
     return 'Email sent successfully';
@@ -179,6 +179,6 @@ export const sendVerifyAccountEmail = async (sendEmailDto: SendEmailDto) => {
     }
 
     logger.error('Unexpected Service Error:', error);
-    throw new AppError('Service Error: Failed to resend email', 500);
+    throw new AppError('Service Error: Failed to send email', 500);
   }
 };

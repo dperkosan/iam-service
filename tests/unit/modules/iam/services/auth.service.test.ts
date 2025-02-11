@@ -28,10 +28,12 @@ import { createUserInTransaction } from '@modules/iam/repositories/user.reposito
 import { userRepository } from '@modules/iam/repositories/user.repository';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
 import { EntityNotFoundError } from 'typeorm';
+import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 
 // Mock dependencies
 jest.mock('@modules/iam/repositories/user.repository', () => ({
   userRepository: {
+    findOneBy: jest.fn(),
     findOneByOrFail: jest.fn(),
   },
 }));
@@ -309,9 +311,89 @@ describe('Auth Service - resendVerifyAccountEmail', () => {
 
     await expect(
       authService.resendVerifyAccountEmail(mockResendDto),
-    ).rejects.toThrow(
-      new AppError('Service Error: Failed to resend email', 500),
+    ).rejects.toThrow(new AppError('Service Error: Failed to send email', 500));
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unexpected Service Error:',
+      unexpectedError,
     );
+  });
+});
+
+describe('Auth Service - sendVerifyAccountEmail', () => {
+  const mockSendEmailDto: SendEmailDto = {
+    email: 'test@example.com',
+    organizationId: 'org-1234',
+  };
+
+  const mockUser = {
+    id: 1,
+    email: 'test@example.com',
+    emailVerified: false,
+  };
+  const mockNewTokenId = 'new-mock-token-id';
+  const mockNewEmailVerificationToken = 'new-mock-email-verification-token';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (randomUUID as jest.Mock).mockReturnValue(mockNewTokenId);
+  });
+
+  it('should send a verification email if the user exists and email is not verified', async () => {
+    (userRepository.findOneBy as jest.Mock).mockResolvedValue(mockUser);
+    (tokenService.signToken as jest.Mock).mockResolvedValue(
+      mockNewEmailVerificationToken,
+    );
+    (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
+    (mailerService.sendEmailVerification as jest.Mock).mockResolvedValue(
+      undefined,
+    );
+
+    const result = await authService.sendVerifyAccountEmail(mockSendEmailDto);
+
+    expect(tokenService.signToken).toHaveBeenCalledWith(
+      mockUser.id,
+      TokenType.EMAIL_VERIFICATION,
+      jwtConfig.emailVerificationTokenTtl,
+      { tokenId: mockNewTokenId },
+    );
+    expect(tokenService.insertToken).toHaveBeenCalledWith(
+      mockUser.id,
+      TokenType.EMAIL_VERIFICATION,
+      mockNewTokenId,
+      jwtConfig.emailVerificationTokenTtl,
+    );
+    expect(mailerService.sendEmailVerification).toHaveBeenCalledWith(
+      mockUser.email,
+      mockNewEmailVerificationToken,
+    );
+    expect(result).toEqual('Email sent successfully');
+  });
+
+  it('should return an empty object if user does not exist', async () => {
+    (userRepository.findOneBy as jest.Mock).mockResolvedValue(null);
+
+    const result = await authService.sendVerifyAccountEmail(mockSendEmailDto);
+
+    expect(result).toEqual({});
+  });
+
+  it('should throw an error if email is already verified', async () => {
+    const verifiedUser = { ...mockUser, emailVerified: true };
+    (userRepository.findOneBy as jest.Mock).mockResolvedValue(verifiedUser);
+
+    await expect(
+      authService.sendVerifyAccountEmail(mockSendEmailDto),
+    ).rejects.toThrow(new BadRequestError('Email is already verified.'));
+  });
+
+  it('should log an unexpected error and throw a service error', async () => {
+    const unexpectedError = new Error('Unexpected failure');
+    (userRepository.findOneBy as jest.Mock).mockRejectedValue(unexpectedError);
+
+    await expect(
+      authService.sendVerifyAccountEmail(mockSendEmailDto),
+    ).rejects.toThrow(new AppError('Service Error: Failed to send email', 500));
 
     expect(logger.error).toHaveBeenCalledWith(
       'Unexpected Service Error:',

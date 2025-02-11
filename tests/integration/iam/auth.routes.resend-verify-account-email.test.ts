@@ -155,7 +155,7 @@ describe('Resend Verify Account Email Integration Test', () => {
       .send({ token: validToken })
       .expect(500);
 
-    expect(response.body.message).toBe('Service Error: Failed to resend email');
+    expect(response.body.message).toBe('Service Error: Failed to send email');
     jest.restoreAllMocks();
   });
 });
