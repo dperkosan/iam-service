@@ -32,3 +32,22 @@ export const sendEmailVerification = async (
     throw new AppError('Failed to send email verification.', 500, false);
   }
 };
+
+export const sendWelcomeMail = async (email: User['email']): Promise<void> => {
+  try {
+    const loginLink = new URL('auth/login', getEnvVariable('FRONTEND_URL'));
+
+    const html = `
+      <h1>Your Email Has Been Verified</h1>
+      <p>Congratulations! Your email address has been successfully verified.</p>
+      <p>You can now access all features of your account. Click the link below to log in:</p>
+      <a href="${loginLink}" target="_blank">Go to Login</a>
+      <p>If you did not verify this email, please contact our support team.</p>
+    `;
+
+    await sendEmail(email, 'Account Verified - Welcome!', html);
+  } catch (error) {
+    logger.error('Error sending welcome mail:', error);
+    throw new AppError('Failed to send welcome mail.', 500, false);
+  }
+};

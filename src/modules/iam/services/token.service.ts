@@ -86,6 +86,23 @@ export const validateToken = async (
   return true;
 };
 
+export const invalidateToken = async (
+  userId: User['id'],
+  tokenType: TokenType,
+): Promise<void> => {
+  try {
+    const key = getKey(userId, tokenType);
+    const result = await redisClient.del(key);
+
+    if (result === 0) {
+      logger.warn(`Token not found or already invalidated for key: ${key}`);
+    }
+  } catch (error) {
+    logger.error('Failed to invalidate token:', error);
+    throw new AppError('Service Error: Failed to invalidate token', 500);
+  }
+};
+
 export const insertToken = async (
   userId: User['id'],
   tokenType: TokenType,
