@@ -36,6 +36,9 @@ describe('Register Integration Test', () => {
   });
 
   afterAll(async () => {
+    await clearDB(dataSource);
+    await redisClient.flushall();
+
     // Cleanup database and Redis connections
     await dataSource.destroy();
     await redisClient.quit();
