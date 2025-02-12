@@ -3,6 +3,7 @@ import {
   register,
   resendVerifyAccountEmail,
   sendVerifyAccountEmail,
+  verifyAccount,
 } from '@modules/iam/controllers/auth.controller';
 import * as authService from '@modules/iam/services/auth.service';
 import { AppError } from '@common/errors/http-status.error';
@@ -11,6 +12,7 @@ import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import { Role } from '@modules/iam/enums/role.enum';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
+import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 
 // Mock authService
 jest.mock('@modules/iam/services/auth.service');
@@ -394,6 +396,117 @@ describe('Auth Controller - Send Verify Account Email', () => {
         'Validation Error: Email and organizationId are required',
       );
       expect(authService.sendVerifyAccountEmail).toHaveBeenCalledWith(req.body);
+    });
+  });
+});
+
+describe('Auth Controller - Verify Account', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let statusMock: jest.Mock;
+  let jsonMock: jest.Mock;
+  const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
+
+  beforeEach(() => {
+    statusMock = jest.fn().mockReturnThis(); // Enables chaining
+    jsonMock = jest.fn();
+
+    const verifyAccountDto: VerifyAccountDto = {
+      token: 'valid-verification-token',
+    };
+
+    req = { body: verifyAccountDto };
+    res = { status: statusMock, json: jsonMock };
+
+    // Reset Redis mock
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockReset();
+    mockRedisClient.quit.mockReset();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('when account verification is successful', () => {
+    it('should respond with 200 and the result from authService.verifyAccount', async () => {
+      // Arrange
+      const mockResult = { message: 'Account verified successfully' };
+      (authService.verifyAccount as jest.Mock).mockResolvedValue(mockResult);
+
+      // Act
+      await verifyAccount(req as Request, res as Response);
+
+      // Assert
+      expect(authService.verifyAccount).toHaveBeenCalledWith(req.body);
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith(mockResult);
+    });
+  });
+
+  describe('when there is a validation error from the service layer', () => {
+    it('should propagate the validation error', async () => {
+      // Arrange
+      const mockError = new AppError('Invalid verification token', 400);
+      (authService.verifyAccount as jest.Mock).mockRejectedValue(mockError);
+
+      req.body = { token: 'invalid-token' } as VerifyAccountDto;
+
+      // Act & Assert
+      await expect(
+        verifyAccount(req as Request, res as Response),
+      ).rejects.toThrow('Invalid verification token');
+      expect(authService.verifyAccount).toHaveBeenCalledWith(req.body);
+    });
+  });
+
+  describe('when there is an unexpected error from the service layer', () => {
+    it('should propagate the unexpected error', async () => {
+      // Arrange
+      const mockError = new AppError(
+        'Service Error: Failed to verify account',
+        500,
+      );
+      (authService.verifyAccount as jest.Mock).mockRejectedValue(mockError);
+
+      // Act & Assert
+      await expect(
+        verifyAccount(req as Request, res as Response),
+      ).rejects.toThrow('Service Error: Failed to verify account');
+      expect(authService.verifyAccount).toHaveBeenCalledWith(req.body);
+    });
+  });
+
+  describe('when Redis connection needs to be closed', () => {
+    it('should not close the Redis connection for singleton usage', async () => {
+      // Arrange
+      const mockResult = { message: 'Account verified successfully' };
+      (authService.verifyAccount as jest.Mock).mockResolvedValue(mockResult);
+
+      // Act
+      await verifyAccount(req as Request, res as Response);
+
+      // Assert
+      expect(mockRedisClient.quit).not.toHaveBeenCalled(); // Singleton Redis should not be closed
+    });
+  });
+
+  describe('when req.body is missing required fields', () => {
+    it('should propagate validation errors for missing fields', async () => {
+      // Arrange
+      req.body = {}; // Missing token field
+
+      const mockError = new AppError(
+        'Validation Error: Token is required',
+        400,
+      );
+      (authService.verifyAccount as jest.Mock).mockRejectedValue(mockError);
+
+      // Act & Assert
+      await expect(
+        verifyAccount(req as Request, res as Response),
+      ).rejects.toThrow('Validation Error: Token is required');
+      expect(authService.verifyAccount).toHaveBeenCalledWith(req.body);
     });
   });
 });

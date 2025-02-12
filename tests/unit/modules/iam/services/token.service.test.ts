@@ -1,12 +1,3 @@
-// Set environment variables before any imports
-process.env.JWT_SECRET = 'test-secret';
-process.env.JWT_TOKEN_AUDIENCE = 'test-audience';
-process.env.JWT_TOKEN_ISSUER = 'test-issuer';
-process.env.JWT_ACCESS_TOKEN_TTL = '3600';
-process.env.JWT_REFRESH_TOKEN_TTL = '86400';
-process.env.JWT_EMAIL_VERIFICATION_TOKEN_TTL = '2592000';
-process.env.JWT_FORGOTTEN_PASSWORD_TOKEN_TTL = '2592000';
-
 import jwt, { JsonWebTokenError } from 'jsonwebtoken';
 import logger from '@common/log/app.log';
 import {
@@ -14,6 +5,7 @@ import {
   insertToken,
   verifyToken,
   validateToken,
+  invalidateToken,
 } from '@modules/iam/services/token.service';
 import jwtConfig from '@common/config/jwt.config';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
@@ -30,6 +22,7 @@ jest.mock('@redis/redis.client', () => {
   const redisMock = {
     set: jest.fn(),
     get: jest.fn(),
+    del: jest.fn(),
   };
   return { redisClient: redisMock };
 });
@@ -189,6 +182,56 @@ describe('Token Service', () => {
 
       await expect(validateToken(userId, tokenType, tokenId)).rejects.toThrow(
         TokenRevokedError,
+      );
+    });
+  });
+
+  describe('invalidateToken', () => {
+    it('should delete the token from Redis successfully', async () => {
+      // Arrange
+      jest.spyOn(redisClient, 'del').mockResolvedValue(1); // Simulate successful deletion
+
+      // Act
+      await invalidateToken(userId, tokenType);
+
+      // Assert
+      expect(redisClient.del).toHaveBeenCalledWith(
+        `${tokenType}-user-${userId}`,
+      );
+    });
+
+    it('should log a warning if the token is not found or already invalidated', async () => {
+      // Arrange
+      jest.spyOn(redisClient, 'del').mockResolvedValue(0); // Simulate token not found
+
+      // Act
+      await invalidateToken(userId, tokenType);
+
+      // Assert
+      expect(redisClient.del).toHaveBeenCalledWith(
+        `${tokenType}-user-${userId}`,
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        `Token not found or already invalidated for key: ${tokenType}-user-${userId}`,
+      );
+    });
+
+    it('should throw an AppError and log the error if Redis delete operation fails', async () => {
+      // Arrange
+      jest
+        .spyOn(redisClient, 'del')
+        .mockRejectedValue(new Error('Redis Error'));
+
+      // Act & Assert
+      await expect(invalidateToken(userId, tokenType)).rejects.toThrow(
+        AppError,
+      );
+      await expect(invalidateToken(userId, tokenType)).rejects.toThrow(
+        'Service Error: Failed to invalidate token',
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to invalidate token:',
+        expect.any(Error),
       );
     });
   });
