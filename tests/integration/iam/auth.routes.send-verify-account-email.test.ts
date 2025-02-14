@@ -125,7 +125,7 @@ describe('Send Verify Account Email Integration Test', () => {
       .send(requestBody)
       .expect(500);
 
-    expect(response.body.message).toBe('Service Error: Failed to send email');
+    expect(response.body.message).toBe('Service Error: Failed to insert token');
     jest.restoreAllMocks();
   });
 });
