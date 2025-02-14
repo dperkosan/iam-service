@@ -51,10 +51,10 @@ describe('Verify Account Integration Test', () => {
     organization = organizationMockFactory();
     await dataSource.manager.save(Organization, organization);
 
-    user = userMockFactory();
-    user.organization = organization;
-    user.organizationId = organization.id;
-    user.emailVerified = false;
+    user = userMockFactory({
+      organization: organization,
+      emailVerified: false,
+    });
 
     // Save the user after ensuring organization exists
     await dataSource.manager.save(User, user);
