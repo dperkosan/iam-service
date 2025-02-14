@@ -10,7 +10,7 @@ import {
 import logger from '@common/log/app.log';
 import * as authService from '@modules/iam/services/auth.service';
 import { Role } from '@modules/iam/enums/role.enum';
-import { hashData } from '@common/utils/hash.util';
+import { compareData, hashData } from '@common/utils/hash.util';
 import dataSource from '@database/config/typeorm.config';
 import { randomUUID } from 'crypto';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
@@ -21,6 +21,7 @@ import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-tok
 import { EntityNotFoundError } from 'typeorm';
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
+import { LoginDto } from '@modules/iam/dtos/login.dto';
 
 // Mock dependencies
 jest.mock('@modules/iam/repositories/user.repository', () => ({
@@ -50,6 +51,7 @@ jest.mock('@modules/iam/services/token.service', () => ({
   verifyToken: jest.fn(),
   validateToken: jest.fn(),
   invalidateToken: jest.fn(),
+  generateAccessTokens: jest.fn(),
 }));
 jest.mock('@modules/iam/services/mailer.service', () => ({
   sendEmailVerification: jest.fn(),
@@ -496,7 +498,135 @@ describe('Auth Service - verifyAccount', () => {
 
     await expect(
       authService.verifyAccount(mockVerifyAccountDto),
-    ).rejects.toThrow(new AppError('Service Error: Failed to send email', 500));
+    ).rejects.toThrow(
+      new AppError('Service Error: Failed to verify account', 500),
+    );
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unexpected Service Error:',
+      unexpectedError,
+    );
+  });
+});
+
+describe('Auth Service - login', () => {
+  const mockLoginDto: LoginDto = {
+    email: 'test@example.com',
+    password: 'password123',
+    organizationId: 'org-1234',
+  };
+
+  const mockUser = {
+    id: 1,
+    email: 'test@example.com',
+    password: 'hashedPassword123',
+    organizationId: 'org-1234',
+    enabled: true,
+    emailVerified: true,
+    role: 'ADMIN',
+  };
+  const mockAccessTokens = {
+    accessToken: 'mock-access-token',
+    refreshToken: 'mock-refresh-token',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should login successfully if credentials are valid', async () => {
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(mockUser);
+    (hashData as jest.Mock).mockResolvedValue('hashedPassword123');
+    (tokenService.generateAccessTokens as jest.Mock).mockResolvedValue(
+      mockAccessTokens,
+    );
+    (compareData as jest.Mock).mockResolvedValue(true);
+
+    const result = await authService.login(mockLoginDto);
+
+    expect(userRepository.findOneByOrFail).toHaveBeenCalledWith({
+      email: mockLoginDto.email,
+      organizationId: mockLoginDto.organizationId,
+    });
+    expect(compareData).toHaveBeenCalledWith(
+      mockLoginDto.password,
+      mockUser.password,
+    );
+    expect(tokenService.generateAccessTokens).toHaveBeenCalledWith(
+      mockUser.id,
+      mockUser.organizationId,
+      mockUser.email,
+      mockUser.role,
+    );
+    expect(result).toEqual(mockAccessTokens);
+  });
+
+  it('should throw UnauthorizedError if user is not found', async () => {
+    (userRepository.findOneByOrFail as jest.Mock).mockRejectedValue(
+      new EntityNotFoundError('User', { id: 1 }),
+    );
+
+    await expect(authService.login(mockLoginDto)).rejects.toThrow(
+      new UnauthorizedError('User credentials are invalid.'),
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith('User not found');
+  });
+
+  it('should throw UnauthorizedError if password is incorrect', async () => {
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(mockUser);
+    (compareData as jest.Mock).mockResolvedValue(false);
+
+    await expect(authService.login(mockLoginDto)).rejects.toThrow(
+      new UnauthorizedError('User credentials are invalid.'),
+    );
+  });
+
+  it('should throw UnauthorizedError if user account is not enabled', async () => {
+    const disabledUser = { ...mockUser, enabled: false };
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(
+      disabledUser,
+    );
+    (compareData as jest.Mock).mockResolvedValue(true);
+
+    await expect(authService.login(mockLoginDto)).rejects.toThrow(
+      new UnauthorizedError('User account is not enabled.'),
+    );
+  });
+
+  it('should throw UnauthorizedError if user email is not verified', async () => {
+    const unverifiedUser = { ...mockUser, emailVerified: false };
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(
+      unverifiedUser,
+    );
+    (compareData as jest.Mock).mockResolvedValue(true);
+
+    await expect(authService.login(mockLoginDto)).rejects.toThrow(
+      new UnauthorizedError('User email is not verified.'),
+    );
+  });
+
+  it('should throw AppError and log a warning if an AppError occurs', async () => {
+    const appError = new AppError('Service Error', 500);
+    (userRepository.findOneByOrFail as jest.Mock).mockRejectedValue(appError);
+
+    await expect(authService.login(mockLoginDto)).rejects.toThrow(appError);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Service Error:',
+      appError.message,
+    );
+  });
+
+  it('should throw generic AppError if an unexpected error occurs', async () => {
+    const unexpectedError = new Error('Unexpected Error');
+    (userRepository.findOneByOrFail as jest.Mock).mockRejectedValue(
+      unexpectedError,
+    );
+
+    await expect(authService.login(mockLoginDto)).rejects.toThrow(
+      new AppError('Service Error: Failed to login', 500),
+    );
 
     expect(logger.error).toHaveBeenCalledWith(
       'Unexpected Service Error:',

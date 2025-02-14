@@ -7,12 +7,13 @@ import {
   UnauthorizedError,
 } from '@common/errors/http-status.error';
 import logger from '@common/log/app.log';
-import { hashData } from '@common/utils/hash.util';
+import { compareData, hashData } from '@common/utils/hash.util';
 import dataSource from '@database/config/typeorm.config';
 import { randomUUID } from 'crypto';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import jwtConfig from '@common/config/jwt.config';
 import {
+  generateAccessTokens,
   insertToken,
   invalidateToken,
   signToken,
@@ -28,6 +29,7 @@ import { EntityNotFoundError } from 'typeorm';
 import { createUserInTransaction } from '@modules/iam/repositories/user.repository.transaction';
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
+import { LoginDto } from '@modules/iam/dtos/login.dto';
 
 export const register = async (registerDto: RegisterDto) => {
   try {
@@ -226,6 +228,54 @@ export const verifyAccount = async (verifyAccountDto: VerifyAccountDto) => {
     }
 
     logger.error('Unexpected Service Error:', error);
-    throw new AppError('Service Error: Failed to send email', 500);
+    throw new AppError('Service Error: Failed to verify account', 500);
+  }
+};
+
+export const login = async (loginDto: LoginDto) => {
+  try {
+    const user = await userRepository.findOneByOrFail({
+      email: loginDto.email,
+      organizationId: loginDto.organizationId,
+    });
+
+    const isCorrectPassword = await compareData(
+      loginDto.password,
+      user.password,
+    );
+    if (!isCorrectPassword) {
+      throw new UnauthorizedError('User credentials are invalid.');
+    }
+
+    if (!user.enabled)
+      throw new UnauthorizedError('User account is not enabled.');
+
+    if (!user.emailVerified)
+      throw new UnauthorizedError('User email is not verified.');
+
+    return await generateAccessTokens(
+      user.id,
+      user.organizationId,
+      user.email,
+      user.role,
+    );
+  } catch (error) {
+    if (error instanceof EntityNotFoundError) {
+      logger.warn('User not found');
+      throw new UnauthorizedError('User credentials are invalid.');
+    }
+
+    if (error instanceof UnauthorizedError) {
+      logger.warn(error.message);
+      throw error;
+    }
+
+    if (error instanceof AppError) {
+      logger.warn('Service Error:', error.message);
+      throw error;
+    }
+
+    logger.error('Unexpected Service Error:', error);
+    throw new AppError('Service Error: Failed to login', 500);
   }
 };

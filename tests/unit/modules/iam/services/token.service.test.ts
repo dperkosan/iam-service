@@ -1,12 +1,7 @@
 import jwt, { JsonWebTokenError } from 'jsonwebtoken';
 import logger from '@common/log/app.log';
-import {
-  signToken,
-  insertToken,
-  verifyToken,
-  validateToken,
-  invalidateToken,
-} from '@modules/iam/services/token.service';
+import * as tokenService from '@modules/iam/services/token.service';
+
 import jwtConfig from '@common/config/jwt.config';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import { redisClient } from '@redis/redis.client';
@@ -16,7 +11,9 @@ import {
   UnauthorizedError,
 } from '@common/errors/http-status.error';
 import { Role } from '@modules/iam/enums/role.enum';
+import { randomUUID } from 'crypto';
 
+jest.mock('crypto');
 jest.mock('jsonwebtoken');
 jest.mock('@redis/redis.client', () => {
   const redisMock = {
@@ -53,7 +50,12 @@ describe('Token Service', () => {
         });
 
         // Act
-        const result = await signToken(userId, tokenType, expiresIn, payload);
+        const result = await tokenService.signToken(
+          userId,
+          tokenType,
+          expiresIn,
+          payload,
+        );
 
         // Assert
         expect(result).toBe(token);
@@ -83,10 +85,10 @@ describe('Token Service', () => {
 
         // Act & Assert
         await expect(
-          signToken(userId, tokenType, expiresIn, payload),
+          tokenService.signToken(userId, tokenType, expiresIn, payload),
         ).rejects.toThrow(AppError);
         await expect(
-          signToken(userId, tokenType, expiresIn, payload),
+          tokenService.signToken(userId, tokenType, expiresIn, payload),
         ).rejects.toThrow('Service Error: Failed to sign token');
         expect(logger.error).toHaveBeenCalledWith(
           'Failed to sign token:',
@@ -105,7 +107,7 @@ describe('Token Service', () => {
           .mockResolvedValue('OK');
 
         // Act
-        await insertToken(userId, tokenType, tokenId, expiresIn);
+        await tokenService.insertToken(userId, tokenType, tokenId, expiresIn);
 
         // Assert
         expect(redisSetSpy).toHaveBeenCalledWith(
@@ -118,7 +120,7 @@ describe('Token Service', () => {
     });
 
     describe('when Redis set operation fails', () => {
-      it('should throw an error and not insert the token', async () => {
+      it('should throw an AppError with a service error message and not insert the token', async () => {
         // Arrange
         const redisSetSpy = jest
           .spyOn(redisClient, 'set')
@@ -126,8 +128,9 @@ describe('Token Service', () => {
 
         // Act & Assert
         await expect(
-          insertToken(userId, tokenType, tokenId, expiresIn),
-        ).rejects.toThrow('Redis Error');
+          tokenService.insertToken(userId, tokenType, tokenId, expiresIn),
+        ).rejects.toThrow('Service Error: Failed to insert token');
+
         expect(redisSetSpy).toHaveBeenCalledWith(
           `${tokenType}-user-${userId}`,
           tokenId,
@@ -146,7 +149,7 @@ describe('Token Service', () => {
         }
       });
 
-      const result = await verifyToken(token);
+      const result = await tokenService.verifyToken(token);
       expect(result).toEqual({ sub: userId, tokenType });
     });
 
@@ -157,7 +160,9 @@ describe('Token Service', () => {
         }
       });
 
-      await expect(verifyToken(token)).rejects.toThrow(UnauthorizedError);
+      await expect(tokenService.verifyToken(token)).rejects.toThrow(
+        UnauthorizedError,
+      );
     });
   });
 
@@ -165,23 +170,44 @@ describe('Token Service', () => {
     it('should return true when token is valid', async () => {
       jest.spyOn(redisClient, 'get').mockResolvedValue(tokenId);
 
-      const result = await validateToken(userId, tokenType, tokenId);
+      const result = await tokenService.validateToken(
+        userId,
+        tokenType,
+        tokenId,
+      );
       expect(result).toBe(true);
     });
 
     it('should throw a TokenRevokedError if token is not in Redis', async () => {
       jest.spyOn(redisClient, 'get').mockResolvedValue(null);
 
-      await expect(validateToken(userId, tokenType, tokenId)).rejects.toThrow(
-        TokenRevokedError,
-      );
+      await expect(
+        tokenService.validateToken(userId, tokenType, tokenId),
+      ).rejects.toThrow(TokenRevokedError);
     });
 
     it('should throw a TokenRevokedError if token does not match', async () => {
       jest.spyOn(redisClient, 'get').mockResolvedValue('differentTokenId');
 
-      await expect(validateToken(userId, tokenType, tokenId)).rejects.toThrow(
-        TokenRevokedError,
+      await expect(
+        tokenService.validateToken(userId, tokenType, tokenId),
+      ).rejects.toThrow(TokenRevokedError);
+    });
+
+    it('should log an error and throw an AppError if Redis get operation fails', async () => {
+      const redisError = new Error('Redis connection error');
+      jest.spyOn(redisClient, 'get').mockRejectedValue(redisError);
+
+      await expect(
+        tokenService.validateToken(userId, tokenType, tokenId),
+      ).rejects.toThrow(AppError);
+      await expect(
+        tokenService.validateToken(userId, tokenType, tokenId),
+      ).rejects.toThrow('Service Error: Failed to validate token');
+
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to validate token:',
+        redisError,
       );
     });
   });
@@ -192,7 +218,7 @@ describe('Token Service', () => {
       jest.spyOn(redisClient, 'del').mockResolvedValue(1); // Simulate successful deletion
 
       // Act
-      await invalidateToken(userId, tokenType);
+      await tokenService.invalidateToken(userId, tokenType);
 
       // Assert
       expect(redisClient.del).toHaveBeenCalledWith(
@@ -205,7 +231,7 @@ describe('Token Service', () => {
       jest.spyOn(redisClient, 'del').mockResolvedValue(0); // Simulate token not found
 
       // Act
-      await invalidateToken(userId, tokenType);
+      await tokenService.invalidateToken(userId, tokenType);
 
       // Assert
       expect(redisClient.del).toHaveBeenCalledWith(
@@ -223,16 +249,116 @@ describe('Token Service', () => {
         .mockRejectedValue(new Error('Redis Error'));
 
       // Act & Assert
-      await expect(invalidateToken(userId, tokenType)).rejects.toThrow(
-        AppError,
-      );
-      await expect(invalidateToken(userId, tokenType)).rejects.toThrow(
-        'Service Error: Failed to invalidate token',
-      );
+      await expect(
+        tokenService.invalidateToken(userId, tokenType),
+      ).rejects.toThrow(AppError);
+      await expect(
+        tokenService.invalidateToken(userId, tokenType),
+      ).rejects.toThrow('Service Error: Failed to invalidate token');
       expect(logger.error).toHaveBeenCalledWith(
         'Failed to invalidate token:',
         expect.any(Error),
       );
     });
+  });
+});
+
+describe('generateAccessTokens', () => {
+  const userId = '12345';
+  const organizationId = 'org123';
+  const email = 'user@example.com';
+  const role = Role.USER;
+  const accessToken = 'mockAccessToken';
+  const refreshToken = 'mockRefreshToken';
+  const refreshTokenId = 'mockRefreshTokenId';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (randomUUID as jest.Mock).mockReturnValue(refreshTokenId);
+    jest.spyOn(tokenService, 'signToken').mockReset();
+    jest.spyOn(tokenService, 'insertToken').mockReset();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should generate access and refresh tokens and insert refresh token into Redis', async () => {
+    jest.spyOn(tokenService, 'signToken').mockResolvedValueOnce(accessToken);
+    jest.spyOn(tokenService, 'signToken').mockResolvedValueOnce(refreshToken);
+    jest.spyOn(tokenService, 'insertToken').mockResolvedValue(undefined);
+
+    const result = await tokenService.generateAccessTokens(
+      userId,
+      organizationId,
+      email,
+      role,
+    );
+
+    expect(randomUUID).toHaveBeenCalled();
+    expect(tokenService.signToken).toHaveBeenCalledTimes(2);
+    expect(tokenService.signToken).toHaveBeenNthCalledWith(
+      1,
+      userId,
+      TokenType.AUTH,
+      jwtConfig.accessTokenTtl,
+      {
+        organizationId,
+        email,
+        role,
+      },
+    );
+    expect(tokenService.signToken).toHaveBeenNthCalledWith(
+      2,
+      userId,
+      TokenType.REFRESH,
+      jwtConfig.refreshTokenTtl,
+      {
+        tokenId: refreshTokenId,
+      },
+    );
+    expect(tokenService.insertToken).toHaveBeenCalledWith(
+      userId,
+      TokenType.REFRESH,
+      refreshTokenId,
+      jwtConfig.refreshTokenTtl,
+    );
+    expect(result).toEqual({ accessToken, refreshToken });
+  });
+
+  it('should throw an AppError and log the error if token generation fails', async () => {
+    const error = new Error('Token generation error');
+    jest.spyOn(tokenService, 'signToken').mockRejectedValue(error);
+
+    await expect(
+      tokenService.generateAccessTokens(userId, organizationId, email, role),
+    ).rejects.toThrow(AppError);
+    await expect(
+      tokenService.generateAccessTokens(userId, organizationId, email, role),
+    ).rejects.toThrow('Service Error: Failed to generate tokens');
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to generate tokens:',
+      error,
+    );
+  });
+
+  it('should throw an AppError and log the error if inserting refresh token into Redis fails', async () => {
+    const error = new Error('Redis insertion error');
+    jest.spyOn(tokenService, 'signToken').mockResolvedValueOnce(accessToken);
+    jest.spyOn(tokenService, 'signToken').mockResolvedValueOnce(refreshToken);
+    jest.spyOn(tokenService, 'insertToken').mockRejectedValue(error);
+
+    await expect(
+      tokenService.generateAccessTokens(userId, organizationId, email, role),
+    ).rejects.toThrow(AppError);
+    await expect(
+      tokenService.generateAccessTokens(userId, organizationId, email, role),
+    ).rejects.toThrow('Service Error: Failed to generate tokens');
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to generate tokens:',
+      error,
+    );
   });
 });

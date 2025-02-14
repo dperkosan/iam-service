@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import { validation } from '@middleware/validation.middleware';
 import {
+  login,
   register,
   resendVerifyAccountEmail,
   sendVerifyAccountEmail,
@@ -11,6 +12,7 @@ import { handleRouteErrors } from '@middleware/error.middleware';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
+import { LoginDto } from '@modules/iam/dtos/login.dto';
 
 const router = Router();
 
@@ -33,5 +35,7 @@ router.patch(
   validation(VerifyAccountDto),
   handleRouteErrors(verifyAccount),
 );
+
+router.post('/login', validation(LoginDto), handleRouteErrors(login));
 
 export default router;

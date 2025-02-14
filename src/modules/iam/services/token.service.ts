@@ -11,6 +11,7 @@ import {
 import logger from '@common/log/app.log';
 import { redisClient } from '@redis/redis.client';
 import { DecodedToken } from '@modules/iam/types/auth.types';
+import { randomUUID } from 'crypto';
 
 export const signToken = async (
   userId: User['id'],
@@ -77,13 +78,22 @@ export const validateToken = async (
   tokenType: TokenType,
   tokenId: string,
 ): Promise<boolean> => {
-  const storedId = await redisClient.get(getKey(userId, tokenType));
+  try {
+    const storedId = await redisClient.get(getKey(userId, tokenType));
 
-  if (!storedId || storedId !== tokenId) {
-    throw new TokenRevokedError();
+    if (!storedId || storedId !== tokenId) {
+      throw new TokenRevokedError();
+    }
+
+    return true;
+  } catch (error) {
+    if (error instanceof TokenRevokedError) {
+      throw error;
+    }
+
+    logger.error('Failed to validate token:', error);
+    throw new AppError('Service Error: Failed to validate token', 500);
   }
-
-  return true;
 };
 
 export const invalidateToken = async (
@@ -109,9 +119,50 @@ export const insertToken = async (
   tokenId: string,
   expiresIn: number,
 ): Promise<void> => {
-  await redisClient.set(getKey(userId, tokenType), tokenId, 'EX', expiresIn);
+  try {
+    await redisClient.set(getKey(userId, tokenType), tokenId, 'EX', expiresIn);
+  } catch (error) {
+    logger.error('Failed to insert token:', error);
+    throw new AppError('Service Error: Failed to insert token', 500);
+  }
 };
 
 const getKey = (userId: User['id'], tokenType: TokenType): string => {
   return `${tokenType}-user-${userId}`;
+};
+
+export const generateAccessTokens = async (
+  userId: User['id'],
+  organizationId: User['organizationId'],
+  email: User['email'],
+  role: User['role'],
+): Promise<{ accessToken: string; refreshToken: string }> => {
+  try {
+    const refreshTokenId = randomUUID();
+    const [accessToken, refreshToken] = await Promise.all([
+      signToken(userId, TokenType.AUTH, jwtConfig.accessTokenTtl, {
+        organizationId: organizationId,
+        email: email,
+        role: role,
+      }),
+      signToken(userId, TokenType.REFRESH, jwtConfig.refreshTokenTtl, {
+        tokenId: refreshTokenId,
+      }),
+    ]);
+
+    await insertToken(
+      userId,
+      TokenType.REFRESH,
+      refreshTokenId,
+      jwtConfig.refreshTokenTtl,
+    );
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    logger.error('Failed to generate tokens:', error);
+    throw new AppError('Service Error: Failed to generate tokens', 500);
+  }
 };

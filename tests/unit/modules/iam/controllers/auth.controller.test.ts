@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import {
+  login,
   register,
   resendVerifyAccountEmail,
   sendVerifyAccountEmail,
@@ -13,6 +14,7 @@ import { Role } from '@modules/iam/enums/role.enum';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
+import { LoginDto } from '@modules/iam/dtos/login.dto';
 
 // Mock authService
 jest.mock('@modules/iam/services/auth.service');
@@ -507,6 +509,109 @@ describe('Auth Controller - Verify Account', () => {
         verifyAccount(req as Request, res as Response),
       ).rejects.toThrow('Validation Error: Token is required');
       expect(authService.verifyAccount).toHaveBeenCalledWith(req.body);
+    });
+  });
+});
+
+describe('Auth Controller - Login', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let statusMock: jest.Mock;
+  let jsonMock: jest.Mock;
+  const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
+
+  beforeEach(() => {
+    statusMock = jest.fn().mockReturnThis();
+    jsonMock = jest.fn();
+
+    const loginDto: LoginDto = {
+      email: 'test@example.com',
+      password: 'password123',
+      organizationId: 'org-1234',
+    };
+
+    req = { body: loginDto };
+    res = { status: statusMock, json: jsonMock };
+
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockReset();
+    mockRedisClient.quit.mockReset();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('when login is successful', () => {
+    it('should respond with 200 and the result from authService.login', async () => {
+      const mockResult = {
+        accessToken: 'jwt-token',
+        refreshToken: 'refresh-token',
+      };
+      (authService.login as jest.Mock).mockResolvedValue(mockResult);
+
+      await login(req as Request, res as Response);
+
+      expect(authService.login).toHaveBeenCalledWith(req.body);
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith(mockResult);
+    });
+  });
+
+  describe('when there is a validation error from the service layer', () => {
+    it('should propagate the validation error', async () => {
+      const mockError = new AppError('Invalid credentials', 400);
+      (authService.login as jest.Mock).mockRejectedValue(mockError);
+
+      req.body = { email: 'invalid-email', password: 'short' } as LoginDto;
+
+      await expect(login(req as Request, res as Response)).rejects.toThrow(
+        'Invalid credentials',
+      );
+      expect(authService.login).toHaveBeenCalledWith(req.body);
+    });
+  });
+
+  describe('when there is an unexpected error from the service layer', () => {
+    it('should propagate the unexpected error', async () => {
+      const mockError = new AppError('Service Error: Failed to login', 500);
+      (authService.login as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(login(req as Request, res as Response)).rejects.toThrow(
+        'Service Error: Failed to login',
+      );
+      expect(authService.login).toHaveBeenCalledWith(req.body);
+    });
+  });
+
+  describe('when Redis connection needs to be closed', () => {
+    it('should not close the Redis connection for singleton usage', async () => {
+      const mockResult = {
+        accessToken: 'jwt-token',
+        refreshToken: 'refresh-token',
+      };
+      (authService.login as jest.Mock).mockResolvedValue(mockResult);
+
+      await login(req as Request, res as Response);
+
+      expect(mockRedisClient.quit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('when req.body is missing required fields', () => {
+    it('should propagate validation errors for missing fields', async () => {
+      req.body = {};
+
+      const mockError = new AppError(
+        'Validation Error: Email and password are required',
+        400,
+      );
+      (authService.login as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(login(req as Request, res as Response)).rejects.toThrow(
+        'Validation Error: Email and password are required',
+      );
+      expect(authService.login).toHaveBeenCalledWith(req.body);
     });
   });
 });

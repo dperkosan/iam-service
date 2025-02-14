@@ -4,6 +4,7 @@ import * as authService from '@modules/iam/services/auth.service';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
+import { LoginDto } from '@modules/iam/dtos/login.dto';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const registerDto: RegisterDto = req.body;
@@ -47,6 +48,13 @@ export const verifyAccount = async (
 ): Promise<void> => {
   const verifyAccountDto: VerifyAccountDto = req.body;
   const result = await authService.verifyAccount(verifyAccountDto);
+
+  res.status(200).json(result);
+};
+
+export const login = async (req: Request, res: Response): Promise<void> => {
+  const loginDto: LoginDto = req.body;
+  const result = await authService.login(loginDto);
 
   res.status(200).json(result);
 };
