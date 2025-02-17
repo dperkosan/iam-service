@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import {
   login,
+  refreshToken,
   register,
   resendVerifyAccountEmail,
   sendVerifyAccountEmail,
@@ -15,6 +16,7 @@ import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-tok
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
+import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
 
 // Mock authService
 jest.mock('@modules/iam/services/auth.service');
@@ -612,6 +614,115 @@ describe('Auth Controller - Login', () => {
         'Validation Error: Email and password are required',
       );
       expect(authService.login).toHaveBeenCalledWith(req.body);
+    });
+  });
+});
+
+describe('Auth Controller - Refresh Token', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let statusMock: jest.Mock;
+  let jsonMock: jest.Mock;
+  const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
+
+  beforeEach(() => {
+    statusMock = jest.fn().mockReturnThis();
+    jsonMock = jest.fn();
+
+    const refreshTokenDto: RefreshTokenDto = {
+      refreshToken: 'valid-refresh-token',
+    };
+
+    req = { body: refreshTokenDto };
+    res = { status: statusMock, json: jsonMock };
+
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockReset();
+    mockRedisClient.quit.mockReset();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('when refresh token is successful', () => {
+    it('should respond with 200 and the result from authService.refreshToken', async () => {
+      const mockResult = {
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      };
+
+      (authService.refreshToken as jest.Mock).mockResolvedValue(mockResult);
+
+      await refreshToken(req as Request, res as Response);
+
+      expect(authService.refreshToken).toHaveBeenCalledWith(req.body);
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith(mockResult);
+    });
+  });
+
+  describe('when there is a validation error from the service layer', () => {
+    it('should propagate the validation error', async () => {
+      const mockError = new AppError('Invalid refresh token', 400);
+      (authService.refreshToken as jest.Mock).mockRejectedValue(mockError);
+
+      req.body = { refreshToken: 'invalid-token' } as RefreshTokenDto;
+
+      await expect(
+        refreshToken(req as Request, res as Response),
+      ).rejects.toThrow('Invalid refresh token');
+
+      expect(authService.refreshToken).toHaveBeenCalledWith(req.body);
+    });
+  });
+
+  describe('when there is an unexpected error from the service layer', () => {
+    it('should propagate the unexpected error', async () => {
+      const mockError = new AppError(
+        'Service Error: Failed to refresh token',
+        500,
+      );
+      (authService.refreshToken as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(
+        refreshToken(req as Request, res as Response),
+      ).rejects.toThrow('Service Error: Failed to refresh token');
+
+      expect(authService.refreshToken).toHaveBeenCalledWith(req.body);
+    });
+  });
+
+  describe('when Redis connection needs to be closed', () => {
+    it('should not close the Redis connection for singleton usage', async () => {
+      const mockResult = {
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      };
+
+      (authService.refreshToken as jest.Mock).mockResolvedValue(mockResult);
+
+      await refreshToken(req as Request, res as Response);
+
+      expect(mockRedisClient.quit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('when req.body is missing required fields', () => {
+    it('should propagate validation errors for missing fields', async () => {
+      req.body = {};
+
+      const mockError = new AppError(
+        'Validation Error: Refresh token is required',
+        400,
+      );
+      (authService.refreshToken as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(
+        refreshToken(req as Request, res as Response),
+      ).rejects.toThrow('Validation Error: Refresh token is required');
+
+      expect(authService.refreshToken).toHaveBeenCalledWith(req.body);
     });
   });
 });
