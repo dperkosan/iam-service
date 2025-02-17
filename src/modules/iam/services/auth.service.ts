@@ -30,6 +30,7 @@ import { createUserInTransaction } from '@modules/iam/repositories/user.reposito
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
+import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
 
 export const register = async (registerDto: RegisterDto) => {
   try {
@@ -277,5 +278,45 @@ export const login = async (loginDto: LoginDto) => {
 
     logger.error('Unexpected Service Error:', error);
     throw new AppError('Service Error: Failed to login', 500);
+  }
+};
+
+export const refreshToken = async (refreshTokenDto: RefreshTokenDto) => {
+  try {
+    const { sub, tokenId } = await verifyToken(refreshTokenDto.refreshToken);
+
+    const user = await userRepository.findOneByOrFail({ id: sub });
+
+    await validateToken(user.id, TokenType.REFRESH, tokenId);
+    await invalidateToken(user.id, TokenType.REFRESH);
+
+    return await generateAccessTokens(
+      user.id,
+      user.organizationId,
+      user.email,
+      user.role,
+    );
+  } catch (error) {
+    if (error instanceof EntityNotFoundError) {
+      throw new AppError('User not found', 404);
+    }
+
+    if (error instanceof TokenRevokedError) {
+      logger.warn('Unauthorized attempt with a revoked token');
+      throw error;
+    }
+
+    if (error instanceof UnauthorizedError) {
+      logger.warn('Unauthorized attempt with an invalid/expired token');
+      throw error;
+    }
+
+    if (error instanceof AppError) {
+      logger.warn('Service Error:', error.message);
+      throw error;
+    }
+
+    logger.error('Unexpected Service Error:', error);
+    throw new AppError('Service Error: Failed to verify account', 500);
   }
 };

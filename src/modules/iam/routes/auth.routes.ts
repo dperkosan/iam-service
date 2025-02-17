@@ -3,6 +3,7 @@ import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import { validation } from '@middleware/validation.middleware';
 import {
   login,
+  refreshToken,
   register,
   resendVerifyAccountEmail,
   sendVerifyAccountEmail,
@@ -13,6 +14,7 @@ import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-tok
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
+import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
 
 const router = Router();
 
@@ -37,5 +39,11 @@ router.patch(
 );
 
 router.post('/login', validation(LoginDto), handleRouteErrors(login));
+
+router.post(
+  '/refresh-token',
+  validation(RefreshTokenDto),
+  handleRouteErrors(refreshToken),
+);
 
 export default router;

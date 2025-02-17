@@ -5,6 +5,7 @@ import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-tok
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
+import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const registerDto: RegisterDto = req.body;
@@ -55,6 +56,16 @@ export const verifyAccount = async (
 export const login = async (req: Request, res: Response): Promise<void> => {
   const loginDto: LoginDto = req.body;
   const result = await authService.login(loginDto);
+
+  res.status(200).json(result);
+};
+
+export const refreshToken = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const refreshTokenDto: RefreshTokenDto = req.body;
+  const result = await authService.refreshToken(refreshTokenDto);
 
   res.status(200).json(result);
 };
