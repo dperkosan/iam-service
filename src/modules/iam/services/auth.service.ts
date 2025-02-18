@@ -20,10 +20,7 @@ import {
   validateToken,
   verifyToken,
 } from '@modules/iam/services/token.service';
-import {
-  sendEmailVerification,
-  sendWelcomeMail,
-} from '@modules/iam/services/mailer.service';
+import * as mailerService from '@modules/iam/services/mailer.service';
 import { ResendEmailWithTokenDto } from '@modules/iam/dtos/resend-email-with-token.dto';
 import { EntityNotFoundError } from 'typeorm';
 import { createUserInTransaction } from '@modules/iam/repositories/user.repository.transaction';
@@ -31,6 +28,7 @@ import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
 import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
+import { ResetPasswordDto } from '@modules/iam/dtos/reset-password.dto';
 
 export const register = async (registerDto: RegisterDto) => {
   try {
@@ -60,7 +58,10 @@ export const register = async (registerDto: RegisterDto) => {
         jwtConfig.emailVerificationTokenTtl,
       );
 
-      await sendEmailVerification(createdUser.email, emailVerificationToken);
+      await mailerService.sendVerifyAccountEmail(
+        createdUser.email,
+        emailVerificationToken,
+      );
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...userWithoutPassword } = createdUser;
@@ -117,7 +118,10 @@ export const resendVerifyAccountEmail = async (
     );
 
     // resend email
-    await sendEmailVerification(user.email, newEmailVerificationToken);
+    await mailerService.sendVerifyAccountEmail(
+      user.email,
+      newEmailVerificationToken,
+    );
 
     return 'Email sent successfully';
   } catch (error) {
@@ -177,7 +181,10 @@ export const sendVerifyAccountEmail = async (sendEmailDto: SendEmailDto) => {
     );
 
     // send email
-    await sendEmailVerification(user.email, newEmailVerificationToken);
+    await mailerService.sendVerifyAccountEmail(
+      user.email,
+      newEmailVerificationToken,
+    );
 
     return 'Email sent successfully';
   } catch (error) {
@@ -205,7 +212,7 @@ export const verifyAccount = async (verifyAccountDto: VerifyAccountDto) => {
     await invalidateToken(user.id, TokenType.EMAIL_VERIFICATION);
     await userRepository.update(user.id, { emailVerified: true });
 
-    await sendWelcomeMail(user.email);
+    await mailerService.sendWelcomeMail(user.email);
 
     return 'Account is successfully verified!';
   } catch (error) {
@@ -296,6 +303,148 @@ export const refreshToken = async (refreshTokenDto: RefreshTokenDto) => {
       user.email,
       user.role,
     );
+  } catch (error) {
+    if (error instanceof EntityNotFoundError) {
+      throw new AppError('User not found', 404);
+    }
+
+    if (error instanceof TokenRevokedError) {
+      logger.warn('Unauthorized attempt with a revoked token');
+      throw error;
+    }
+
+    if (error instanceof UnauthorizedError) {
+      logger.warn('Unauthorized attempt with an invalid/expired token');
+      throw error;
+    }
+
+    if (error instanceof AppError) {
+      logger.warn('Service Error:', error.message);
+      throw error;
+    }
+
+    logger.error('Unexpected Service Error:', error);
+    throw new AppError('Service Error: Failed to verify account', 500);
+  }
+};
+
+export const sendResetPasswordEmail = async (sendEmailDto: SendEmailDto) => {
+  try {
+    const user = await userRepository.findOneBy({
+      email: sendEmailDto.email,
+      organizationId: sendEmailDto.organizationId,
+    });
+
+    // Prevent user enumeration by returning success even if the user doesn't exist
+    if (!user) return {};
+
+    // create new token
+    const newTokenId = randomUUID();
+    const newChangePasswordToken = await signToken(
+      user.id,
+      TokenType.FORGOTTEN_PASSWORD,
+      jwtConfig.forgottenPasswordTokenTtl,
+      { tokenId: newTokenId },
+    );
+
+    // save new token in redis in place of old one
+    await insertToken(
+      user.id,
+      TokenType.FORGOTTEN_PASSWORD,
+      newTokenId,
+      jwtConfig.forgottenPasswordTokenTtl,
+    );
+
+    // send email
+    await mailerService.sendResetPasswordEmail(
+      user.email,
+      newChangePasswordToken,
+    );
+
+    return 'Email sent successfully';
+  } catch (error) {
+    if (error instanceof AppError) {
+      logger.warn('Service Error:', error.message);
+      throw error;
+    }
+
+    logger.error('Unexpected Service Error:', error);
+    throw new AppError('Service Error: Failed to send email', 500);
+  }
+};
+
+export const resendResetPasswordEmail = async (
+  resendEmailWithTokenDto: ResendEmailWithTokenDto,
+) => {
+  try {
+    const { sub, tokenId } = await verifyToken(resendEmailWithTokenDto.token);
+
+    const user = await userRepository.findOneByOrFail({ id: sub });
+
+    await validateToken(user.id, TokenType.FORGOTTEN_PASSWORD, tokenId);
+
+    // create new token
+    const newTokenId = randomUUID();
+    const newChangePasswordToken = await signToken(
+      user.id,
+      TokenType.FORGOTTEN_PASSWORD,
+      jwtConfig.forgottenPasswordTokenTtl,
+      { tokenId: newTokenId },
+    );
+
+    // save new token in redis in place of old one
+    await insertToken(
+      user.id,
+      TokenType.FORGOTTEN_PASSWORD,
+      newTokenId,
+      jwtConfig.forgottenPasswordTokenTtl,
+    );
+
+    // resend email
+    await mailerService.sendResetPasswordEmail(
+      user.email,
+      newChangePasswordToken,
+    );
+
+    return 'Email sent successfully';
+  } catch (error) {
+    if (error instanceof EntityNotFoundError) {
+      throw new AppError('User not found', 404);
+    }
+
+    if (error instanceof TokenRevokedError) {
+      logger.warn('Unauthorized attempt with a revoked token');
+      throw error;
+    }
+
+    if (error instanceof UnauthorizedError) {
+      logger.warn('Unauthorized attempt with an invalid/expired token');
+      throw error;
+    }
+
+    if (error instanceof AppError) {
+      logger.warn('Service Error:', error.message);
+      throw error;
+    }
+
+    logger.error('Unexpected Service Error:', error);
+    throw new AppError('Service Error: Failed to send email', 500);
+  }
+};
+
+export const resetPassword = async (resetPasswordDto: ResetPasswordDto) => {
+  try {
+    const { sub, tokenId } = await verifyToken(resetPasswordDto.token);
+
+    const user = await userRepository.findOneByOrFail({ id: sub });
+
+    await validateToken(user.id, TokenType.FORGOTTEN_PASSWORD, tokenId);
+    await invalidateToken(user.id, TokenType.FORGOTTEN_PASSWORD);
+
+    const hashedPassword = await hashData(resetPasswordDto.newPassword);
+    await userRepository.update(user.id, { password: hashedPassword });
+
+    return 'Password is successfully changed!';
   } catch (error) {
     if (error instanceof EntityNotFoundError) {
       throw new AppError('User not found', 404);

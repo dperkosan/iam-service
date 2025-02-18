@@ -2,7 +2,7 @@ import { sendEmail } from '@common/utils/email.util';
 import logger from '@common/log/app.log';
 import { AppError } from '@common/errors/http-status.error';
 import {
-  sendEmailVerification,
+  sendVerifyAccountEmail,
   sendWelcomeMail,
 } from '@modules/iam/services/mailer.service';
 import getEnvVariable from '@common/utils/env.util';
@@ -36,7 +36,7 @@ describe('Email Service - sendEmailVerification', () => {
   describe('when email is sent successfully', () => {
     it('should send an email with the correct parameters', async () => {
       // Act
-      await sendEmailVerification(email, token);
+      await sendVerifyAccountEmail(email, token);
 
       // Assert
       const expectedVerificationLink = new URL(
@@ -69,7 +69,7 @@ describe('Email Service - sendEmailVerification', () => {
       (sendEmail as jest.Mock).mockRejectedValueOnce(mockError);
 
       // Act
-      const promise = sendEmailVerification(email, token);
+      const promise = sendVerifyAccountEmail(email, token);
 
       // Assert
       await expect(promise).rejects.toThrow(AppError);

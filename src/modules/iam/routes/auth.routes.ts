@@ -5,7 +5,10 @@ import {
   login,
   refreshToken,
   register,
+  resendResetPasswordEmail,
   resendVerifyAccountEmail,
+  resetPassword,
+  sendResetPasswordEmail,
   sendVerifyAccountEmail,
   verifyAccount,
 } from '@modules/iam/controllers/auth.controller';
@@ -15,6 +18,7 @@ import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
 import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
+import { ResetPasswordDto } from '@modules/iam/dtos/reset-password.dto';
 
 const router = Router();
 
@@ -44,6 +48,24 @@ router.post(
   '/refresh-token',
   validation(RefreshTokenDto),
   handleRouteErrors(refreshToken),
+);
+
+router.post(
+  '/send-reset-password-email',
+  validation(SendEmailDto),
+  handleRouteErrors(sendResetPasswordEmail),
+);
+
+router.post(
+  '/resend-reset-password-email',
+  validation(ResendEmailWithTokenDto),
+  handleRouteErrors(resendResetPasswordEmail),
+);
+
+router.patch(
+  '/reset-password',
+  validation(ResetPasswordDto),
+  handleRouteErrors(resetPassword),
 );
 
 export default router;

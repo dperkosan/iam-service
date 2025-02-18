@@ -55,7 +55,7 @@ jest.mock('@modules/iam/services/token.service', () => ({
   generateAccessTokens: jest.fn(),
 }));
 jest.mock('@modules/iam/services/mailer.service', () => ({
-  sendEmailVerification: jest.fn(),
+  sendVerifyAccountEmail: jest.fn(),
   sendWelcomeMail: jest.fn(),
 }));
 jest.mock('@common/log/app.log', () => ({
@@ -103,7 +103,7 @@ describe('Auth Service - register', () => {
         mockEmailVerificationToken,
       );
       (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
-      (mailerService.sendEmailVerification as jest.Mock).mockResolvedValue(
+      (mailerService.sendVerifyAccountEmail as jest.Mock).mockResolvedValue(
         undefined,
       );
 
@@ -128,7 +128,7 @@ describe('Auth Service - register', () => {
         mockTokenId,
         jwtConfig.emailVerificationTokenTtl,
       );
-      expect(mailerService.sendEmailVerification).toHaveBeenCalledWith(
+      expect(mailerService.sendVerifyAccountEmail).toHaveBeenCalledWith(
         mockCreatedUser.email,
         mockEmailVerificationToken,
       );
@@ -245,7 +245,7 @@ describe('Auth Service - resendVerifyAccountEmail', () => {
       mockNewEmailVerificationToken,
     );
     (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
-    (mailerService.sendEmailVerification as jest.Mock).mockResolvedValue(
+    (mailerService.sendVerifyAccountEmail as jest.Mock).mockResolvedValue(
       undefined,
     );
 
@@ -343,7 +343,7 @@ describe('Auth Service - sendVerifyAccountEmail', () => {
       mockNewEmailVerificationToken,
     );
     (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
-    (mailerService.sendEmailVerification as jest.Mock).mockResolvedValue(
+    (mailerService.sendVerifyAccountEmail as jest.Mock).mockResolvedValue(
       undefined,
     );
 
@@ -361,7 +361,7 @@ describe('Auth Service - sendVerifyAccountEmail', () => {
       mockNewTokenId,
       jwtConfig.emailVerificationTokenTtl,
     );
-    expect(mailerService.sendEmailVerification).toHaveBeenCalledWith(
+    expect(mailerService.sendVerifyAccountEmail).toHaveBeenCalledWith(
       mockUser.email,
       mockNewEmailVerificationToken,
     );

@@ -4,7 +4,7 @@ import { sendEmail } from '@common/utils/email.util';
 import getEnvVariable from '@common/utils/env.util';
 import { User } from '@modules/iam/entities/user.entity';
 
-export const sendEmailVerification = async (
+export const sendVerifyAccountEmail = async (
   email: User['email'],
   token: string,
 ): Promise<void> => {
@@ -49,5 +49,30 @@ export const sendWelcomeMail = async (email: User['email']): Promise<void> => {
   } catch (error) {
     logger.error('Error sending welcome mail:', error);
     throw new AppError('Failed to send welcome mail.', 500, false);
+  }
+};
+
+export const sendResetPasswordEmail = async (
+  email: User['email'],
+  token: string,
+): Promise<void> => {
+  try {
+    const resetLink = new URL(
+      'auth/reset-password',
+      getEnvVariable('FRONTEND_URL'),
+    );
+    resetLink.search = new URLSearchParams({ token }).toString();
+
+    const html = `
+      <h1>Reset Your Password</h1>
+      <p>You requested to reset your password. Click the link below to set a new password:</p>
+      <a href="${resetLink}" target="_blank">Reset Password</a>
+      <p>If you did not request this change, please ignore this email.</p>
+    `;
+
+    await sendEmail(email, 'Password Reset Request', html);
+  } catch (error) {
+    logger.error('Error sending password reset email:', error);
+    throw new AppError('Failed to send password reset email.', 500, false);
   }
 };
