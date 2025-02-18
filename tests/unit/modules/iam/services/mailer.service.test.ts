@@ -2,6 +2,7 @@ import { sendEmail } from '@common/utils/email.util';
 import logger from '@common/log/app.log';
 import { AppError } from '@common/errors/http-status.error';
 import {
+  sendResetPasswordEmail,
   sendVerifyAccountEmail,
   sendWelcomeMail,
 } from '@modules/iam/services/mailer.service';
@@ -137,6 +138,63 @@ describe('Email Service - sendWelcomeMail', () => {
       await expect(promise).rejects.toThrow('Failed to send welcome mail.');
       expect(logger.error).toHaveBeenCalledWith(
         'Error sending welcome mail:',
+        mockError,
+      );
+    });
+  });
+});
+
+describe('Email Service - sendResetPasswordEmail', () => {
+  const email = 'test@example.com';
+  const token = 'mockToken';
+  const frontendUrl = 'https://frontend.example.com';
+
+  beforeAll(() => {
+    (getEnvVariable as jest.Mock).mockImplementation((key: string) => {
+      if (key === 'FRONTEND_URL') return frontendUrl;
+      return undefined;
+    });
+  });
+
+  afterAll(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('when email is sent successfully', () => {
+    it('should send an email with the correct parameters', async () => {
+      await sendResetPasswordEmail(email, token);
+
+      const expectedResetLink = new URL('auth/reset-password', frontendUrl);
+      expectedResetLink.search = new URLSearchParams({ token }).toString();
+
+      const expectedHtml = `
+      <h1>Reset Your Password</h1>
+      <p>You requested to reset your password. Click the link below to set a new password:</p>
+      <a href="${expectedResetLink}" target="_blank">Reset Password</a>
+      <p>If you did not request this change, please ignore this email.</p>
+    `;
+
+      expect(sendEmail).toHaveBeenCalledWith(
+        email,
+        'Password Reset Request',
+        expectedHtml,
+      );
+    });
+  });
+
+  describe('when email sending fails', () => {
+    it('should log the error and throw an AppError', async () => {
+      const mockError = new Error('SMTP Connection Error');
+      (sendEmail as jest.Mock).mockRejectedValueOnce(mockError);
+
+      const promise = sendResetPasswordEmail(email, token);
+
+      await expect(promise).rejects.toThrow(AppError);
+      await expect(promise).rejects.toThrow(
+        'Failed to send password reset email.',
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        'Error sending password reset email:',
         mockError,
       );
     });

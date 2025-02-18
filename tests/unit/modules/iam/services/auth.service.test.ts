@@ -23,6 +23,7 @@ import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
 import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
+import { ResetPasswordDto } from '@modules/iam/dtos/reset-password.dto';
 
 // Mock dependencies
 jest.mock('@modules/iam/repositories/user.repository', () => ({
@@ -57,6 +58,7 @@ jest.mock('@modules/iam/services/token.service', () => ({
 jest.mock('@modules/iam/services/mailer.service', () => ({
   sendVerifyAccountEmail: jest.fn(),
   sendWelcomeMail: jest.fn(),
+  sendResetPasswordEmail: jest.fn(),
 }));
 jest.mock('@common/log/app.log', () => ({
   info: jest.fn(),
@@ -750,6 +752,367 @@ describe('Auth Service - refreshToken', () => {
       new AppError('Service Error: Failed to verify account', 500),
     );
 
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unexpected Service Error:',
+      unexpectedError,
+    );
+  });
+});
+
+describe('Auth Service - sendResetPasswordEmail', () => {
+  const mockSendEmailDto: SendEmailDto = {
+    email: 'test@example.com',
+    organizationId: 'org-1234',
+  };
+
+  const mockUser = {
+    id: 1,
+    email: 'test@example.com',
+  };
+
+  const mockTokenId = 'mock-token-id';
+  const mockResetPasswordToken = 'mock-reset-password-token';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (randomUUID as jest.Mock).mockReturnValue(mockTokenId);
+  });
+
+  it('should send a reset password email if user exists', async () => {
+    (userRepository.findOneBy as jest.Mock).mockResolvedValue(mockUser);
+    (tokenService.signToken as jest.Mock).mockResolvedValue(
+      mockResetPasswordToken,
+    );
+    (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
+    (mailerService.sendResetPasswordEmail as jest.Mock).mockResolvedValue(
+      undefined,
+    );
+
+    const result = await authService.sendResetPasswordEmail(mockSendEmailDto);
+
+    expect(result).toEqual('Email sent successfully');
+  });
+
+  it('should return an empty object if user does not exist', async () => {
+    (userRepository.findOneBy as jest.Mock).mockResolvedValue(null);
+
+    const result = await authService.sendResetPasswordEmail(mockSendEmailDto);
+
+    expect(result).toEqual({});
+  });
+
+  it('should handle AppError and log a warning', async () => {
+    const appError = new AppError('Service Error: Custom error', 400);
+    (userRepository.findOneBy as jest.Mock).mockRejectedValue(appError);
+
+    await expect(
+      authService.sendResetPasswordEmail(mockSendEmailDto),
+    ).rejects.toThrow(appError);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Service Error:',
+      appError.message,
+    );
+  });
+
+  it('should log an unexpected error and throw a service error', async () => {
+    const unexpectedError = new Error('Unexpected failure');
+    (userRepository.findOneBy as jest.Mock).mockRejectedValue(unexpectedError);
+
+    await expect(
+      authService.sendResetPasswordEmail(mockSendEmailDto),
+    ).rejects.toThrow(new AppError('Service Error: Failed to send email', 500));
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unexpected Service Error:',
+      unexpectedError,
+    );
+  });
+});
+
+describe('Auth Service - resetPassword', () => {
+  const mockResetPasswordDto: ResetPasswordDto = {
+    token: 'mock-token',
+    newPassword: 'newPassword123',
+  };
+  const mockUser = { id: 1, password: 'oldPasswordHash' };
+  const mockHashedPassword = 'newHashedPassword';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should reset the password if token is valid', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(mockUser);
+    (tokenService.validateToken as jest.Mock).mockResolvedValue(undefined);
+    (tokenService.invalidateToken as jest.Mock).mockResolvedValue(undefined);
+    (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
+    (userRepository.update as jest.Mock).mockResolvedValue(undefined);
+
+    const result = await authService.resetPassword(mockResetPasswordDto);
+
+    expect(result).toEqual('Password is successfully changed!');
+  });
+
+  it('should throw an error if user is not found', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockRejectedValue(
+      new EntityNotFoundError('User', { id: mockUser.id }),
+    );
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(new AppError('User not found', 404));
+  });
+
+  it('should handle TokenRevokedError and log a warning', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new TokenRevokedError('Token revoked'),
+    );
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(TokenRevokedError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Unauthorized attempt with a revoked token',
+    );
+  });
+
+  it('should handle UnauthorizedError and log a warning', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new UnauthorizedError('Unauthorized'),
+    );
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(UnauthorizedError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Unauthorized attempt with an invalid/expired token',
+    );
+  });
+
+  it('should handle AppError and log a warning', async () => {
+    const appError = new AppError('Custom AppError', 400);
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(appError);
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(appError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Service Error:',
+      appError.message,
+    );
+  });
+
+  it('should log an unexpected error and throw a service error', async () => {
+    const unexpectedError = new Error('Unexpected failure');
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(unexpectedError);
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(
+      new AppError('Service Error: Failed to verify account', 500),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unexpected Service Error:',
+      unexpectedError,
+    );
+  });
+});
+
+describe('Auth Service - resendResetPasswordEmail', () => {
+  const mockResendDto: ResendEmailWithTokenDto = { token: 'mock-token' };
+  const mockUser = { id: 1, email: 'test@example.com' };
+  const mockNewTokenId = 'new-mock-token-id';
+  const mockNewResetPasswordToken = 'new-mock-reset-password-token';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (randomUUID as jest.Mock).mockReturnValue(mockNewTokenId);
+  });
+
+  it('should resend reset password email if token is valid', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(mockUser);
+    (tokenService.validateToken as jest.Mock).mockResolvedValue(undefined);
+    (tokenService.signToken as jest.Mock).mockResolvedValue(
+      mockNewResetPasswordToken,
+    );
+    (tokenService.insertToken as jest.Mock).mockResolvedValue(undefined);
+    (mailerService.sendResetPasswordEmail as jest.Mock).mockResolvedValue(
+      undefined,
+    );
+
+    const result = await authService.resendResetPasswordEmail(mockResendDto);
+
+    expect(result).toEqual('Email sent successfully');
+  });
+
+  it('should throw an error if user is not found', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockRejectedValue(
+      new EntityNotFoundError('User', { id: mockUser.id }),
+    );
+
+    await expect(
+      authService.resendResetPasswordEmail(mockResendDto),
+    ).rejects.toThrow(new AppError('User not found', 404));
+  });
+
+  it('should handle token errors properly', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new TokenRevokedError('Token revoked'),
+    );
+
+    await expect(
+      authService.resendResetPasswordEmail(mockResendDto),
+    ).rejects.toThrow(TokenRevokedError);
+  });
+
+  it('should handle UnauthorizedError and log a warning', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new UnauthorizedError('Unauthorized'),
+    );
+
+    await expect(
+      authService.resendResetPasswordEmail(mockResendDto),
+    ).rejects.toThrow(UnauthorizedError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Unauthorized attempt with an invalid/expired token',
+    );
+  });
+
+  it('should handle AppError and log a warning', async () => {
+    const appError = new AppError('Custom AppError', 400);
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(appError);
+
+    await expect(
+      authService.resendResetPasswordEmail(mockResendDto),
+    ).rejects.toThrow(appError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Service Error:',
+      appError.message,
+    );
+  });
+
+  it('should log unexpected errors and throw service error', async () => {
+    const unexpectedError = new Error('Unexpected failure');
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(unexpectedError);
+
+    await expect(
+      authService.resendResetPasswordEmail(mockResendDto),
+    ).rejects.toThrow(new AppError('Service Error: Failed to send email', 500));
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unexpected Service Error:',
+      unexpectedError,
+    );
+  });
+});
+
+describe('Auth Service - resetPassword', () => {
+  const mockResetPasswordDto: ResetPasswordDto = {
+    token: 'mock-token',
+    newPassword: 'newPassword123',
+  };
+  const mockUser = { id: 1, password: 'oldPasswordHash' };
+  const mockHashedPassword = 'newHashedPassword';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should reset the password if token is valid', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockResolvedValue(mockUser);
+    (tokenService.validateToken as jest.Mock).mockResolvedValue(undefined);
+    (tokenService.invalidateToken as jest.Mock).mockResolvedValue(undefined);
+    (hashData as jest.Mock).mockResolvedValue(mockHashedPassword);
+    (userRepository.update as jest.Mock).mockResolvedValue(undefined);
+
+    const result = await authService.resetPassword(mockResetPasswordDto);
+
+    expect(result).toEqual('Password is successfully changed!');
+  });
+
+  it('should throw an error if user is not found', async () => {
+    (tokenService.verifyToken as jest.Mock).mockResolvedValue({
+      sub: mockUser.id,
+      tokenId: 'mock-token-id',
+    });
+    (userRepository.findOneByOrFail as jest.Mock).mockRejectedValue(
+      new EntityNotFoundError('User', { id: mockUser.id }),
+    );
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(new AppError('User not found', 404));
+  });
+
+  it('should handle TokenRevokedError and log a warning', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new TokenRevokedError('Token revoked'),
+    );
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(TokenRevokedError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Unauthorized attempt with a revoked token',
+    );
+  });
+
+  it('should handle UnauthorizedError and log a warning', async () => {
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new UnauthorizedError('Unauthorized'),
+    );
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(UnauthorizedError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Unauthorized attempt with an invalid/expired token',
+    );
+  });
+
+  it('should handle AppError and log a warning', async () => {
+    const appError = new AppError('Custom AppError', 400);
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(appError);
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(appError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Service Error:',
+      appError.message,
+    );
+  });
+
+  it('should log an unexpected error and throw a service error', async () => {
+    const unexpectedError = new Error('Unexpected failure');
+    (tokenService.verifyToken as jest.Mock).mockRejectedValue(unexpectedError);
+
+    await expect(
+      authService.resetPassword(mockResetPasswordDto),
+    ).rejects.toThrow(
+      new AppError('Service Error: Failed to verify account', 500),
+    );
     expect(logger.error).toHaveBeenCalledWith(
       'Unexpected Service Error:',
       unexpectedError,

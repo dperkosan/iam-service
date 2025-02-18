@@ -3,7 +3,10 @@ import {
   login,
   refreshToken,
   register,
+  resendResetPasswordEmail,
   resendVerifyAccountEmail,
+  resetPassword,
+  sendResetPasswordEmail,
   sendVerifyAccountEmail,
   verifyAccount,
 } from '@modules/iam/controllers/auth.controller';
@@ -17,6 +20,7 @@ import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import { VerifyAccountDto } from '@modules/iam/dtos/verify-account.dto';
 import { LoginDto } from '@modules/iam/dtos/login.dto';
 import { RefreshTokenDto } from '@modules/iam/dtos/refresh-token.dto';
+import { ResetPasswordDto } from '@modules/iam/dtos/reset-password.dto';
 
 // Mock authService
 jest.mock('@modules/iam/services/auth.service');
@@ -724,5 +728,128 @@ describe('Auth Controller - Refresh Token', () => {
 
       expect(authService.refreshToken).toHaveBeenCalledWith(req.body);
     });
+  });
+});
+
+describe('Auth Controller - Send Reset Password Email', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let statusMock: jest.Mock;
+  let jsonMock: jest.Mock;
+  const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
+
+  beforeEach(() => {
+    statusMock = jest.fn().mockReturnThis();
+    jsonMock = jest.fn();
+
+    const sendEmailDto: SendEmailDto = {
+      email: 'test@example.com',
+      organizationId: 'org-1234',
+    };
+
+    req = { body: sendEmailDto };
+    res = { status: statusMock, json: jsonMock };
+
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockReset();
+    mockRedisClient.quit.mockReset();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should respond with 200 and the result from authService.sendResetPasswordEmail', async () => {
+    const mockResult = { message: 'Reset password email sent successfully' };
+    (authService.sendResetPasswordEmail as jest.Mock).mockResolvedValue(
+      mockResult,
+    );
+
+    await sendResetPasswordEmail(req as Request, res as Response);
+
+    expect(authService.sendResetPasswordEmail).toHaveBeenCalledWith(req.body);
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(jsonMock).toHaveBeenCalledWith(mockResult);
+  });
+});
+
+describe('Auth Controller - Resend Reset Password Email', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let statusMock: jest.Mock;
+  let jsonMock: jest.Mock;
+  const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
+
+  beforeEach(() => {
+    statusMock = jest.fn().mockReturnThis();
+    jsonMock = jest.fn();
+
+    const resendEmailWithTokenDto: ResendEmailWithTokenDto = {
+      token: 'valid-token',
+    };
+
+    req = { body: resendEmailWithTokenDto };
+    res = { status: statusMock, json: jsonMock };
+
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockReset();
+    mockRedisClient.quit.mockReset();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should respond with 200 and the result from authService.resendResetPasswordEmail', async () => {
+    const mockResult = { message: 'Reset password email resent successfully' };
+    (authService.resendResetPasswordEmail as jest.Mock).mockResolvedValue(
+      mockResult,
+    );
+
+    await resendResetPasswordEmail(req as Request, res as Response);
+
+    expect(authService.resendResetPasswordEmail).toHaveBeenCalledWith(req.body);
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(jsonMock).toHaveBeenCalledWith(mockResult);
+  });
+});
+
+describe('Auth Controller - Reset Password', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let statusMock: jest.Mock;
+  let jsonMock: jest.Mock;
+  const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
+
+  beforeEach(() => {
+    statusMock = jest.fn().mockReturnThis();
+    jsonMock = jest.fn();
+
+    const resetPasswordDto: ResetPasswordDto = {
+      token: 'valid-reset-token',
+      newPassword: 'newpassword123',
+    };
+
+    req = { body: resetPasswordDto };
+    res = { status: statusMock, json: jsonMock };
+
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockReset();
+    mockRedisClient.quit.mockReset();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should respond with 200 and the result from authService.resetPassword', async () => {
+    const mockResult = { message: 'Password reset successfully' };
+    (authService.resetPassword as jest.Mock).mockResolvedValue(mockResult);
+
+    await resetPassword(req as Request, res as Response);
+
+    expect(authService.resetPassword).toHaveBeenCalledWith(req.body);
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(jsonMock).toHaveBeenCalledWith(mockResult);
   });
 });
