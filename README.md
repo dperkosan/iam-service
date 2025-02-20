@@ -2,6 +2,7 @@
 
 ## Content
 
+- [Description](#description)
 - [First steps](#first-steps)
 - [Docker Setup](#docker-setup)
 - [Database Migrations](#database-migrations)
@@ -11,6 +12,66 @@
 - [Error Handling](#error-handling)
 
 ---
+
+## Description
+
+This project is an **IAM (Identity and Access Management) Service** built with **Node.js**, **Express**, **PostgreSQL**, **Redis**, and **Docker**. It is designed to handle **user authentication, account verification, password management, and role-based access control (RBAC)**. The service provides secure access management, token validation, and token invalidation features.
+
+Key components of the system:
+
+- **Node.js + Express** – Backend framework.
+- **PostgreSQL** – Relational database.
+- **Redis** – Used to validate and invalidate tokens (e.g., logout, refresh token invalidation).
+- **Docker** – Containerization for easy setup and deployment.
+- **TypeORM** – Database ORM for managing entities, migrations, and seeding.
+- **Unit & Integration Testing** – Ensuring reliability of individual units and the system as a whole.
+- **Logging** – Structured application logging with appropriate error handling.
+
+### Routes Overview
+
+#### `/auth` – **Authentication & Account Management**
+
+| Route                               | Method | Description                                                  |
+| ----------------------------------- | ------ | ------------------------------------------------------------ |
+| `/auth/register`                    | POST   | Register a new user account.                                 |
+| `/auth/resend-verify-account-email` | POST   | Resend the account verification email to a user.             |
+| `/auth/send-verify-account-email`   | POST   | Send the initial verification email.                         |
+| `/auth/verify-account`              | PATCH  | Verify a user’s account using a token (e.g., from an email). |
+| `/auth/login`                       | POST   | Authenticate user and return access + refresh tokens.        |
+| `/auth/refresh-token`               | POST   | Obtain a new access token using a refresh token.             |
+| `/auth/send-reset-password-email`   | POST   | Send a password reset email to a user.                       |
+| `/auth/resend-reset-password-email` | POST   | Resend a password reset email.                               |
+| `/auth/reset-password`              | PATCH  | Reset a user's password using a token (e.g., from an email). |
+
+#### `/example` – **Example Protected Routes**
+
+| Route                            | Method | Description                                                  |
+| -------------------------------- | ------ | ------------------------------------------------------------ |
+| `/example/public-route`          | GET    | Public route – accessible without authentication.            |
+| `/example/auth-route`            | GET    | Protected route – requires user authentication.              |
+| `/example/auth-route-admin-only` | GET    | Admin-only route – requires authentication and `admin` role. |
+
+### Key Features
+
+- **JWT Authentication with Redis-backed Token Management**:
+  - Tokens issued on login.
+  - Redis used for **validating tokens** (e.g., refresh token flow) and **invalidating tokens** on logout or security events.
+- **Role-Based Access Control (RBAC)**:
+  - Middleware to restrict routes to authenticated users and roles like `admin`.
+- **Email Verification & Password Reset**:
+  - Email-based account activation.
+  - Secure password reset process with token validation.
+- **Graceful Shutdown**:
+  - Ensures proper closure of **database connections** and **Redis client**.
+- **Migrations & Seeding**:
+  - **TypeORM** for database schema changes.
+  - **Seeder scripts** for inserting initial data like user roles.
+- **Testing**:
+  - **Unit tests** for individual components.
+  - **Integration tests** for validating end-to-end behavior.
+- **Logging**:
+  - Structured application-level logging.
+  - Errors are caught with a global error handler for uniform API responses.
 
 ## First Steps
 
