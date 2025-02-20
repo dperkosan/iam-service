@@ -80,8 +80,8 @@ Follow these steps to set up and run the application:
 1. **Clone the repository**:
 
    ```bash
-   git clone <repository-url>
-   cd <repository-folder>
+   git clone git@github.com:dperkosan/iam-service.git
+   cd iam-service
    ```
 
 2. **Build Docker containers**:
