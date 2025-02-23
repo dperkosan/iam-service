@@ -35,6 +35,7 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -48,7 +49,7 @@ jobs:
       - name: Check for Missing Migrations
         run: |
           set -e
-          OUTPUT=$(npx typeorm schema:log)
+          OUTPUT=$(ts-node -r tsconfig-paths/register node_modules/typeorm/cli.js schema:log -d src/database/config/typeorm.config.ts)
           if echo "$OUTPUT" | grep -q "Your schema is up to date"; then
             echo "✅ No pending migrations"
             exit 0
