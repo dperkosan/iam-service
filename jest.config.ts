@@ -30,6 +30,7 @@ export default {
     'src/common/log/app.log.ts',
     'src/common/config/jwt.config.ts',
     'src/database/config/typeorm.config.ts',
+    'src/redis/redis.client.ts',
     'src/.*\\.entity\\.ts$',
     'src/.*\\.factory\\.ts$',
   ],

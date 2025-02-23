@@ -4,8 +4,6 @@ const requiredEnvVariables: Record<string, string[]> = {
   common: [
     'NODE_ENV',
     'FRONTEND_URL',
-    'REDIS_URL',
-    'REDIS_PORT',
     'JWT_SECRET',
     'JWT_TOKEN_AUDIENCE',
     'JWT_TOKEN_ISSUER',
@@ -19,9 +17,26 @@ const requiredEnvVariables: Record<string, string[]> = {
     'SMTP_PASS',
     'SMTP_FROM',
   ], // Required in all environments
-  test: ['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'], // Required only in test environment
-  development: ['DB_HOST', 'DB_NAME', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'], // Required in dev
-  production: ['DATABASE_URL'], // Required in prod
+  test: [
+    'DB_HOST',
+    'DB_PORT',
+    'DB_USERNAME',
+    'DB_PASSWORD',
+    'REDIS_HOST',
+    'REDIS_PORT',
+    'REDIS_DB',
+  ], // Required only in test environment
+  development: [
+    'DB_HOST',
+    'DB_NAME',
+    'DB_PORT',
+    'DB_USERNAME',
+    'DB_PASSWORD',
+    'REDIS_HOST',
+    'REDIS_PORT',
+    'REDIS_DB',
+  ], // Required in dev
+  production: ['DATABASE_URL', 'REDIS_URL'], // Required in prod
 };
 
 const getEnvVariable = (key: string): string => {

@@ -2,9 +2,13 @@ import Redis from 'ioredis';
 import logger from '@common/log/app.log';
 import getEnvVariable from '@common/utils/env.util';
 
+const isProduction = getEnvVariable('NODE_ENV') === 'production';
+
 const createRedisClient = (): Redis => {
   const client = new Redis(
-    `${getEnvVariable('REDIS_URL')}:${getEnvVariable('REDIS_PORT')}/${getEnvVariable('REDIS_DB')}`,
+    isProduction
+      ? getEnvVariable('REDIS_URL')
+      : `${getEnvVariable('REDIS_HOST')}:${getEnvVariable('REDIS_PORT')}/${getEnvVariable('REDIS_DB')}`,
   );
 
   // Log errors
