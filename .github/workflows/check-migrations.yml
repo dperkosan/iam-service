@@ -1,0 +1,60 @@
+name: Check Migrations
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  check-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iam-service-dev
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 54320:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:54320/iam-service-dev
+        run: npm run migration:run
+
+      - name: Check for Missing Migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:54320/iam-service-dev
+        run: |
+          set -e
+          OUTPUT=$(npx typeorm schema:log)
+          if echo "$OUTPUT" | grep -q "Your schema is up to date"; then
+            echo "✅ No pending migrations"
+            exit 0
+          else
+            echo "❌ Missing migrations detected"
+            echo "$OUTPUT"
+            exit 1
+          fi
