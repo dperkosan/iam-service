@@ -19,7 +19,7 @@ const baseConfig: DataSourceOptions = {
     ? ['dist/**/*.entity.js'] // Production: compiled files
     : ['src/**/*.entity.ts'], // Development: TypeScript source files
   migrations: isProduction
-    ? ['dist/database/migrations/*.js']
+    ? ['dist/src/database/migrations/*.js']
     : ['src/database/migrations/*.ts'],
 };
 
