@@ -3,6 +3,7 @@ import { MissingEnvError } from '@common/errors/http-status.error';
 const requiredEnvVariables: Record<string, string[]> = {
   common: [
     'NODE_ENV',
+    'PORT',
     'FRONTEND_URL',
     'JWT_SECRET',
     'JWT_TOKEN_AUDIENCE',

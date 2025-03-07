@@ -3,6 +3,7 @@ import logger from '@common/log/app.log';
 import { redisClient } from '@redis/redis.client';
 import { gracefulShutdown } from '@common/utils/shutdown.util';
 import { createApp } from 'src/createApp';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
 
@@ -17,7 +18,8 @@ const app = createApp();
     console.log('Database connection established.');
 
     // Start Express server
-    const PORT = process.env.PORT || 3000;
+    const PORT = parseInt(getEnvVariable('PORT'), 10);
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
