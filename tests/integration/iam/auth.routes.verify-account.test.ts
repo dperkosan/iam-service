@@ -11,8 +11,11 @@ import { User } from '@modules/iam/entities/user.entity';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import { insertToken, signToken } from '@modules/iam/services/token.service';
 import jwtConfig from '@common/config/jwt.config';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Verify Account Integration Test', () => {
   let organization: Organization;
@@ -77,6 +80,7 @@ describe('Verify Account Integration Test', () => {
   it('should verify an account successfully', async () => {
     const response = await request(app)
       .patch('/auth/verify-account')
+      .set('x-api-key', validApiKey)
       .send({ token: emailVerificationToken })
       .expect(200);
 
@@ -95,6 +99,7 @@ describe('Verify Account Integration Test', () => {
   it('should return an error for an invalid token', async () => {
     const response = await request(app)
       .patch('/auth/verify-account')
+      .set('x-api-key', validApiKey)
       .send({ token: 'invalid-token' })
       .expect(401);
 
@@ -111,6 +116,7 @@ describe('Verify Account Integration Test', () => {
 
     const response = await request(app)
       .patch('/auth/verify-account')
+      .set('x-api-key', validApiKey)
       .send({ token: emailVerificationToken })
       .expect(400);
 
@@ -123,10 +129,36 @@ describe('Verify Account Integration Test', () => {
 
     const response = await request(app)
       .patch('/auth/verify-account')
+      .set('x-api-key', validApiKey)
       .send({ token: emailVerificationToken })
       .expect(404);
 
     expect(response.body).toHaveProperty('message');
     expect(response.body.message).toBe('User not found');
+  });
+
+  it('should return an error when API key is missing', async () => {
+    const response = await request(app)
+      .patch('/auth/verify-account')
+      .send({ token: emailVerificationToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should return an error when API key is invalid', async () => {
+    const response = await request(app)
+      .patch('/auth/verify-account')
+      .set('x-api-key', invalidApiKey)
+      .send({ token: emailVerificationToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
   });
 });

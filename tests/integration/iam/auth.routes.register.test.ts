@@ -11,8 +11,11 @@ import { organizationMockFactory } from '@modules/organizations/mocks/organizati
 import { faker } from '@faker-js/faker/.';
 import { User } from '@modules/iam/entities/user.entity';
 import { compare } from 'bcrypt';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Register Integration Test', () => {
   let organization: Organization;
@@ -65,6 +68,7 @@ describe('Register Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/register')
+      .set('x-api-key', validApiKey)
       .send(registerDto)
       .expect(201);
 
@@ -102,7 +106,7 @@ describe('Register Integration Test', () => {
 
     // Verify the stored password is actually hashed
     const userFromDb = await dataSource
-      .getRepository(User) // Use your User entity
+      .getRepository(User)
       .findOne({ where: { email: registerDto.email } });
 
     expect(userFromDb).toBeDefined();
@@ -146,11 +150,15 @@ describe('Register Integration Test', () => {
       organizationId: organization.id,
     };
 
-    // Register the user for the first time
-    await request(app).post('/auth/register').send(registerDto).expect(201);
+    await request(app)
+      .post('/auth/register')
+      .set('x-api-key', validApiKey)
+      .send(registerDto)
+      .expect(201);
 
     const response = await request(app)
       .post('/auth/register')
+      .set('x-api-key', validApiKey)
       .send(registerDto)
       .expect(400);
 
@@ -170,6 +178,7 @@ describe('Register Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/register')
+      .set('x-api-key', validApiKey)
       .send(invalidRegisterDto)
       .expect(400);
 
@@ -205,6 +214,7 @@ describe('Register Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/register')
+      .set('x-api-key', validApiKey)
       .send(registerDto)
       .expect(500);
 
@@ -214,5 +224,48 @@ describe('Register Integration Test', () => {
     );
 
     jest.restoreAllMocks();
+  });
+
+  it('should return an error when API key is missing', async () => {
+    const registerDto: RegisterDto = {
+      firstName: userMock.firstName,
+      lastName: userMock.lastName,
+      email: userMock.email,
+      password: faker.internet.password(),
+      role: userMock.role,
+      organizationId: organization.id,
+    };
+
+    const response = await request(app)
+      .post('/auth/register')
+      .send(registerDto)
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should return an error when API key is invalid', async () => {
+    const registerDto: RegisterDto = {
+      firstName: userMock.firstName,
+      lastName: userMock.lastName,
+      email: userMock.email,
+      password: faker.internet.password(),
+      role: userMock.role,
+      organizationId: organization.id,
+    };
+
+    const response = await request(app)
+      .post('/auth/register')
+      .set('x-api-key', invalidApiKey)
+      .send(registerDto)
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
   });
 });

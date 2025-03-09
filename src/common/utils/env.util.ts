@@ -5,6 +5,7 @@ const requiredEnvVariables: Record<string, string[]> = {
     'NODE_ENV',
     'PORT',
     'FRONTEND_URL',
+    'IAM_SERVICE_API_KEY',
     'JWT_SECRET',
     'JWT_TOKEN_AUDIENCE',
     'JWT_TOKEN_ISSUER',

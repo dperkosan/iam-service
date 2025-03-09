@@ -10,8 +10,11 @@ import { organizationMockFactory } from '@modules/organizations/mocks/organizati
 import { Organization } from '@modules/organizations/entities/organization.entity';
 import { SendEmailDto } from '@modules/iam/dtos/send-email.dto';
 import * as mailerService from '@modules/iam/services/mailer.service';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Send Reset Password Email Integration Test', () => {
   let sendMailMock: jest.Mock;
@@ -62,6 +65,7 @@ describe('Send Reset Password Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/send-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(200);
 
@@ -82,6 +86,7 @@ describe('Send Reset Password Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/send-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(200);
 
@@ -100,6 +105,7 @@ describe('Send Reset Password Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/send-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(500);
 
@@ -119,9 +125,45 @@ describe('Send Reset Password Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/send-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(500);
 
     expect(response.body.message).toBe('Service Error: Failed to send email');
+  });
+
+  it('should return an error when API key is missing', async () => {
+    const requestBody: SendEmailDto = {
+      email: user.email,
+      organizationId: user.organizationId,
+    };
+
+    const response = await request(app)
+      .post('/auth/send-reset-password-email')
+      .send(requestBody)
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should return an error when API key is invalid', async () => {
+    const requestBody: SendEmailDto = {
+      email: user.email,
+      organizationId: user.organizationId,
+    };
+
+    const response = await request(app)
+      .post('/auth/send-reset-password-email')
+      .set('x-api-key', invalidApiKey)
+      .send(requestBody)
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
   });
 });

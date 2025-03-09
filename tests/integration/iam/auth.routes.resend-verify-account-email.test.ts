@@ -13,8 +13,11 @@ import { organizationMockFactory } from '@modules/organizations/mocks/organizati
 import { Organization } from '@modules/organizations/entities/organization.entity';
 import { RegisterDto } from '@modules/iam/dtos/register.dto';
 import { faker } from '@faker-js/faker/.';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Resend Verify Account Email Integration Test', () => {
   let sendMailMock: jest.Mock;
@@ -83,6 +86,7 @@ describe('Resend Verify Account Email Integration Test', () => {
   it('should resend verification email successfully', async () => {
     const response = await request(app)
       .post('/auth/resend-verify-account-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(200);
 
@@ -106,6 +110,7 @@ describe('Resend Verify Account Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/resend-verify-account-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(400);
 
@@ -117,6 +122,7 @@ describe('Resend Verify Account Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/resend-verify-account-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(404);
 
@@ -128,6 +134,7 @@ describe('Resend Verify Account Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/resend-verify-account-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(401);
 
@@ -137,6 +144,7 @@ describe('Resend Verify Account Email Integration Test', () => {
   it('should fail when token is invalid', async () => {
     const response = await request(app)
       .post('/auth/resend-verify-account-email')
+      .set('x-api-key', validApiKey)
       .send({ token: 'invalid-token' })
       .expect(401);
 
@@ -152,6 +160,7 @@ describe('Resend Verify Account Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/resend-verify-account-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(500);
 
@@ -159,5 +168,30 @@ describe('Resend Verify Account Email Integration Test', () => {
       'Service Error: Failed to validate token',
     );
     jest.restoreAllMocks();
+  });
+
+  it('should return an error when API key is missing', async () => {
+    const response = await request(app)
+      .post('/auth/resend-verify-account-email')
+      .send({ token: validToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should return an error when API key is invalid', async () => {
+    const response = await request(app)
+      .post('/auth/resend-verify-account-email')
+      .set('x-api-key', invalidApiKey)
+      .send({ token: validToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
   });
 });

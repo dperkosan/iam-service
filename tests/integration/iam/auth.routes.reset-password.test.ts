@@ -15,8 +15,11 @@ import {
 } from '@modules/iam/services/token.service';
 import jwtConfig from '@common/config/jwt.config';
 import { randomUUID } from 'crypto';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Reset Password Integration Test', () => {
   let organization: Organization;
@@ -74,6 +77,7 @@ describe('Reset Password Integration Test', () => {
 
     const response = await request(app)
       .patch('/auth/reset-password')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(200);
 
@@ -94,6 +98,7 @@ describe('Reset Password Integration Test', () => {
 
     const response = await request(app)
       .patch('/auth/reset-password')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(401);
 
@@ -112,6 +117,7 @@ describe('Reset Password Integration Test', () => {
 
     const response = await request(app)
       .patch('/auth/reset-password')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(401);
 
@@ -128,6 +134,7 @@ describe('Reset Password Integration Test', () => {
 
     const response = await request(app)
       .patch('/auth/reset-password')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(404);
 
@@ -149,6 +156,7 @@ describe('Reset Password Integration Test', () => {
 
     const response = await request(app)
       .patch('/auth/reset-password')
+      .set('x-api-key', validApiKey)
       .send(requestBody)
       .expect(500);
 
@@ -156,6 +164,41 @@ describe('Reset Password Integration Test', () => {
       'Service Error: Failed to validate token',
     );
 
-    redisGetSpy.mockRestore(); // Clean up mock after test
+    redisGetSpy.mockRestore();
+  });
+
+  it('should return an error when API key is missing', async () => {
+    const requestBody = {
+      token: validToken,
+      newPassword: 'newStrongPassword123',
+    };
+
+    const response = await request(app)
+      .patch('/auth/reset-password')
+      .send(requestBody)
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should return an error when API key is invalid', async () => {
+    const requestBody = {
+      token: validToken,
+      newPassword: 'newStrongPassword123',
+    };
+
+    const response = await request(app)
+      .patch('/auth/reset-password')
+      .set('x-api-key', invalidApiKey)
+      .send(requestBody)
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
   });
 });

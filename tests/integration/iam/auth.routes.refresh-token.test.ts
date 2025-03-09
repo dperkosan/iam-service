@@ -10,8 +10,11 @@ import { User } from '@modules/iam/entities/user.entity';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import { insertToken, signToken } from '@modules/iam/services/token.service';
 import jwtConfig from '@common/config/jwt.config';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Refresh Token Integration Test', () => {
   let organization: Organization;
@@ -61,6 +64,7 @@ describe('Refresh Token Integration Test', () => {
   it('should refresh token successfully', async () => {
     const response = await request(app)
       .post('/auth/refresh-token')
+      .set('x-api-key', validApiKey)
       .send({ refreshToken })
       .expect(200);
 
@@ -71,6 +75,7 @@ describe('Refresh Token Integration Test', () => {
   it('should return an error for invalid token', async () => {
     const response = await request(app)
       .post('/auth/refresh-token')
+      .set('x-api-key', validApiKey)
       .send({ refreshToken: 'invalid-token' })
       .expect(401);
 
@@ -85,6 +90,7 @@ describe('Refresh Token Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/refresh-token')
+      .set('x-api-key', validApiKey)
       .send({ refreshToken })
       .expect(404);
 
@@ -97,10 +103,36 @@ describe('Refresh Token Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/refresh-token')
+      .set('x-api-key', validApiKey)
       .send({ refreshToken })
       .expect(401);
 
     expect(response.body).toHaveProperty('message');
     expect(response.body.message).toBe('Token has been revoked or is invalid');
+  });
+
+  it('should return an error when API key is missing', async () => {
+    const response = await request(app)
+      .post('/auth/refresh-token')
+      .send({ refreshToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should return an error when API key is invalid', async () => {
+    const response = await request(app)
+      .post('/auth/refresh-token')
+      .set('x-api-key', invalidApiKey)
+      .send({ refreshToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
   });
 });

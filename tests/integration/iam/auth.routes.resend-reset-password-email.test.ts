@@ -11,8 +11,11 @@ import { insertToken, signToken } from '@modules/iam/services/token.service';
 import { TokenType } from '@modules/iam/enums/token-type.enum';
 import { Organization } from '@modules/organizations/entities/organization.entity';
 import { organizationMockFactory } from '@modules/organizations/mocks/organization.mock';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Resend Reset Password Email Integration Test', () => {
   let sendMailMock: jest.Mock;
@@ -70,6 +73,7 @@ describe('Resend Reset Password Email Integration Test', () => {
   it('should resend reset password email successfully', async () => {
     const response = await request(app)
       .post('/auth/resend-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(200);
 
@@ -93,6 +97,7 @@ describe('Resend Reset Password Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/resend-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(404);
 
@@ -104,6 +109,7 @@ describe('Resend Reset Password Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/resend-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(401);
 
@@ -113,6 +119,7 @@ describe('Resend Reset Password Email Integration Test', () => {
   it('should fail when token is invalid', async () => {
     const response = await request(app)
       .post('/auth/resend-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send({ token: 'invalid-token' })
       .expect(401);
 
@@ -128,6 +135,7 @@ describe('Resend Reset Password Email Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/resend-reset-password-email')
+      .set('x-api-key', validApiKey)
       .send({ token: validToken })
       .expect(500);
 
@@ -135,5 +143,30 @@ describe('Resend Reset Password Email Integration Test', () => {
       'Service Error: Failed to validate token',
     );
     jest.restoreAllMocks();
+  });
+
+  it('should return an error when API key is missing', async () => {
+    const response = await request(app)
+      .post('/auth/resend-reset-password-email')
+      .send({ token: validToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should return an error when API key is invalid', async () => {
+    const response = await request(app)
+      .post('/auth/resend-reset-password-email')
+      .set('x-api-key', invalidApiKey)
+      .send({ token: validToken })
+      .expect(403);
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
   });
 });

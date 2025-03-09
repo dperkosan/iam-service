@@ -7,8 +7,11 @@ import { userMockFactory } from '@modules/iam/mocks/user.mock';
 import { Organization } from '@modules/organizations/entities/organization.entity';
 import { organizationMockFactory } from '@modules/organizations/mocks/organization.mock';
 import { User } from '@modules/iam/entities/user.entity';
+import getEnvVariable from '@common/utils/env.util';
 
 const app = createApp();
+const validApiKey = getEnvVariable('IAM_SERVICE_API_KEY');
+const invalidApiKey = 'invalid-api-key';
 
 describe('Login Integration Test', () => {
   let organization: Organization;
@@ -46,6 +49,7 @@ describe('Login Integration Test', () => {
   it('should login successfully and return access tokens', async () => {
     const response = await request(app)
       .post('/auth/login')
+      .set('x-api-key', validApiKey)
       .send({
         email: user.email,
         password: 'password123',
@@ -62,6 +66,7 @@ describe('Login Integration Test', () => {
   it('should fail when credentials are invalid', async () => {
     const response = await request(app)
       .post('/auth/login')
+      .set('x-api-key', validApiKey)
       .send({
         email: 'wrong@example.com',
         password: 'wrongpassword',
@@ -80,6 +85,7 @@ describe('Login Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/login')
+      .set('x-api-key', validApiKey)
       .send({
         email: user.email,
         password: 'password123',
@@ -98,6 +104,7 @@ describe('Login Integration Test', () => {
 
     const response = await request(app)
       .post('/auth/login')
+      .set('x-api-key', validApiKey)
       .send({
         email: user.email,
         password: 'password123',
@@ -108,6 +115,39 @@ describe('Login Integration Test', () => {
     expect(response.body).toHaveProperty(
       'message',
       'User email is not verified.',
+    );
+  });
+
+  it('should fail when API key is missing', async () => {
+    const response = await request(app)
+      .post('/auth/login')
+      .send({
+        email: user.email,
+        password: 'password123',
+        organizationId: user.organizationId,
+      })
+      .expect(403); // Expect Forbidden
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
+    );
+  });
+
+  it('should fail when API key is invalid', async () => {
+    const response = await request(app)
+      .post('/auth/login')
+      .set('x-api-key', invalidApiKey) // Invalid API key
+      .send({
+        email: user.email,
+        password: 'password123',
+        organizationId: user.organizationId,
+      })
+      .expect(403); // Expect Forbidden
+
+    expect(response.body).toHaveProperty(
+      'message',
+      'Forbidden: Invalid API key',
     );
   });
 });
