@@ -43,6 +43,16 @@ jobs:
       - name: Load Environment Variables from .env.test
         run: cp .env.test .env
 
+      - name: Create Schema (if not exists)
+        run: |
+          PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USERNAME -d $DB_NAME -p $DB_PORT -c "CREATE SCHEMA IF NOT EXISTS $DB_SCHEMA;"
+        env:
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: iam-service-test
+          DB_PORT: 54320
+          DB_SCHEMA: iam
+
       - name: Run Migrations
         run: npm run migration:run
 
