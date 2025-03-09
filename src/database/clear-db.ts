@@ -1,16 +1,19 @@
+import getEnvVariable from '@common/utils/env.util';
 import { DataSource } from 'typeorm';
 
 const clearDB = async (dataSource: DataSource) => {
   // Fetch all table names from the database
+  const schema = getEnvVariable('DB_SCHEMA') || 'public';
+
   const tables = await dataSource.query(`
     SELECT tablename 
     FROM pg_tables 
-    WHERE schemaname = 'public' AND tablename != 'migrations';
+    WHERE schemaname = '${schema}' AND tablename != 'migrations';
   `);
 
   // Generate TRUNCATE statements dynamically
   const tableNames = tables
-    .map((row: { tablename: string }) => `"${row.tablename}"`)
+    .map((row: { tablename: string }) => `"${schema}"."${row.tablename}"`)
     .join(', ');
 
   if (tableNames) {

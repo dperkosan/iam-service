@@ -9,6 +9,7 @@ const isProduction = getEnvVariable('NODE_ENV') === 'production';
 // Base configuration shared across environments
 const baseConfig: DataSourceOptions = {
   type: 'postgres',
+  schema: getEnvVariable('DB_SCHEMA') || 'public',
   host: getEnvVariable('DB_HOST'),
   port: parseInt(getEnvVariable('DB_PORT') || '5432'),
   username: getEnvVariable('DB_USERNAME'),
